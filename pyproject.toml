@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "replaygate"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2",
+    "duckdb>=1.1",
+    "typer>=0.12",
+    "rich>=13",
+    "anthropic>=0.40",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+replaygate = "replaygate.cli.main:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/replaygate"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+src = ["src"]
