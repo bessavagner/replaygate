@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from replaygate.capture.adapters import DirectAdapter, Scenario
 from replaygate.capture.llm import LLMResponse
 from replaygate.capture.record import record_conversation
-from replaygate.examples.booking_agent import BookingAgent, booking_tools
+from replaygate.examples.booking_agent import BookingAgent
 
 TS = datetime(2026, 6, 28, tzinfo=timezone.utc)
 
