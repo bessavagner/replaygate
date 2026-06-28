@@ -68,3 +68,13 @@ class Conversation(BaseModel):
                 if any(text == a or text.startswith(a + " ") or a in text.split() for a in _AFFIRMATIONS):
                     return True
         return False
+
+
+class SpanRecord(BaseModel):
+    trace_id: str
+    span_id: str
+    parent_id: str | None
+    operation: str
+    attributes: dict
+    start_ns: int
+    end_ns: int
