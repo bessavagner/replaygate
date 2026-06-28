@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 Role = Literal["user", "assistant", "tool", "system"]
 
@@ -26,3 +26,10 @@ class ToolCall(BaseModel):
     result: dict | None = None
     error: str | None = None
     call_id: str
+
+
+class Turn(BaseModel):
+    index: int
+    user_messages: list[Message] = Field(default_factory=list)
+    assistant_messages: list[Message] = Field(default_factory=list)
+    tool_calls: list[ToolCall] = Field(default_factory=list)
