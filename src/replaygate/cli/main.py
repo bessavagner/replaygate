@@ -6,8 +6,9 @@ import typer
 
 from replaygate.capture.adapters import DirectAdapter
 from replaygate.capture.record import record_conversation
+from replaygate.capture.replay import diff_conversations, replay_conversation
 from replaygate.examples.scenarios import EXAMPLES, scripted_llm_for
-from replaygate.store.fixtures import write_fixture
+from replaygate.store.fixtures import read_fixture, write_fixture
 
 app = typer.Typer(help="ReplayGate — regression testing for multi-turn AI agents")
 
@@ -71,3 +72,18 @@ def record_live(
     )
     write_fixture(out_dir, fixture)
     typer.echo(f"recorded {scenario_name} live via {provider} → {out_dir}")
+
+
+@app.command()
+def replay(fixture_dir: str) -> None:
+    """Replay a recorded fixture offline and diff it against the recording (zero network)."""
+    fixture = read_fixture(fixture_dir)
+    spec = EXAMPLES[fixture.conversation.scenario]
+    replayed = replay_conversation(fixture, spec.build_agent, spec.tools())
+    diffs = diff_conversations(fixture.conversation, replayed)
+    if diffs:
+        typer.echo(f"replay MISMATCH ({fixture.conversation.scenario}):")
+        for d in diffs:
+            typer.echo(f"  - {d}")
+        raise typer.Exit(1)
+    typer.echo(f"replay OK — {len(replayed.turns)} turns reproduced offline, zero network")
