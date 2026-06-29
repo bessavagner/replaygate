@@ -6,9 +6,9 @@ from typing import Callable, Protocol
 from replaygate.capture.adapters import ChannelAdapter, Scenario
 from replaygate.capture.llm import LLMClient, RecordingLLMClient
 from replaygate.capture.tools import ToolRecorder
-from replaygate.examples.booking_agent import AgentStep
 from replaygate.store.fixtures import Fixture, FixtureMeta
 from replaygate.trace.models import (
+    AgentStep,
     Conversation,
     Message,
     SessionMeta,

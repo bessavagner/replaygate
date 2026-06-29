@@ -28,6 +28,13 @@ class ToolCall(BaseModel):
     call_id: str
 
 
+class AgentStep(BaseModel):
+    """One agent reply: its text plus any tool calls it made this turn."""
+
+    assistant_text: str
+    tool_calls: list[ToolCall] = Field(default_factory=list)
+
+
 class Turn(BaseModel):
     index: int
     user_messages: list[Message] = Field(default_factory=list)

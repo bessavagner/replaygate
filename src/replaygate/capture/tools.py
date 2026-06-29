@@ -21,6 +21,8 @@ class ToolRecorder:
                 if entry["tool"] == name and entry["args"] == args:
                     return entry["result"]
             raise KeyError(f"no recorded result for tool {name} args {json.dumps(args, sort_keys=True)}")
+        if name not in self._registry:
+            raise KeyError(f"unknown tool {name!r}; available: {', '.join(self._registry)}")
         result = self._registry[name](**args)
         self._recording.append({"tool": name, "args": args, "result": result})
         return result

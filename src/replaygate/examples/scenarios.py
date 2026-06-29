@@ -97,6 +97,10 @@ class _ScriptedLLM:
         self._responses = list(responses)
 
     def create(self, model, system, messages, tools) -> LLMResponse:
+        if not self._responses:
+            raise RuntimeError(
+                "scripted LLM exhausted: the agent made more calls than the scenario script provides"
+            )
         return self._responses.pop(0)
 
 

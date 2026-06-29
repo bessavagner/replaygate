@@ -101,6 +101,8 @@ class OpenAICompatibleClient:
         if tools:
             kwargs["tools"] = [_to_openai_tool(t) for t in tools]
         resp = self._client.chat.completions.create(**kwargs)
+        if not resp.choices:
+            raise ValueError("provider returned no choices")
         choice = resp.choices[0]
         text = choice.message.content or ""
         tool_calls = []

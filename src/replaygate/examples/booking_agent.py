@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from typing import Callable
 
-from pydantic import BaseModel
-
 from replaygate.capture.llm import LLMClient
 from replaygate.capture.tools import ToolRecorder
-from replaygate.trace.models import ToolCall
+from replaygate.trace.models import AgentStep, ToolCall
 
 _SLOTS = {"2026-07-01": ["10am", "3pm"]}
 
@@ -47,11 +45,6 @@ def booking_tool_schemas() -> list[dict]:
             },
         },
     ]
-
-
-class AgentStep(BaseModel):
-    assistant_text: str
-    tool_calls: list[ToolCall]
 
 
 class BookingAgent:

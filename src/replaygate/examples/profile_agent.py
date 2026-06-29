@@ -3,11 +3,9 @@ from __future__ import annotations
 import re
 from typing import Callable
 
-from pydantic import BaseModel
-
 from replaygate.capture.llm import LLMClient
 from replaygate.capture.tools import ToolRecorder
-from replaygate.trace.models import ToolCall
+from replaygate.trace.models import AgentStep, ToolCall
 
 _MENU = [
     {"dish": "margherita pizza", "contains_dairy": True},
@@ -27,11 +25,6 @@ def menu_tools() -> dict[str, Callable[..., dict]]:
         return {"dish": None, "contains_dairy": False}
 
     return {"recommend_dish": recommend_dish}
-
-
-class AgentStep(BaseModel):
-    assistant_text: str
-    tool_calls: list[ToolCall]
 
 
 class ProfileAgent:

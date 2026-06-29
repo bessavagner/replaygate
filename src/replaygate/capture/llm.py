@@ -26,7 +26,7 @@ def request_key(model: str, system: str, messages: list[dict], tools: list[dict]
 
 
 class RecordingLLMClient:
-    def __init__(self, inner: LLMClient, mode: Literal["record", "replay"], recording: list[dict]):
+    def __init__(self, inner: LLMClient | None, mode: Literal["record", "replay"], recording: list[dict]):
         self._inner = inner
         self._mode = mode
         self._recording = recording
@@ -38,6 +38,8 @@ class RecordingLLMClient:
                 if entry["request_key"] == key:
                     return LLMResponse.model_validate(entry["response"])
             raise KeyError(f"no recorded LLM response for request_key {key[:12]}…")
+        if self._inner is None:
+            raise RuntimeError("cannot record without an inner LLMClient")
         response = self._inner.create(model, system, messages, tools)
         self._recording.append({
             "request_key": key,

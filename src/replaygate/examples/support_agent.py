@@ -3,11 +3,9 @@ from __future__ import annotations
 import re
 from typing import Callable
 
-from pydantic import BaseModel
-
 from replaygate.capture.llm import LLMClient
 from replaygate.capture.tools import ToolRecorder
-from replaygate.trace.models import ToolCall
+from replaygate.trace.models import AgentStep, ToolCall
 
 _ORDERS = {
     "ORD-1234": {"status": "shipped", "eta": "2026-07-02"},
@@ -22,11 +20,6 @@ def support_tools() -> dict[str, Callable[..., dict]]:
         return {"order_id": order_id, **record}
 
     return {"lookup_order": lookup_order}
-
-
-class AgentStep(BaseModel):
-    assistant_text: str
-    tool_calls: list[ToolCall]
 
 
 class SupportAgent:

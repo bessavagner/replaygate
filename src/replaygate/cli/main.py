@@ -18,10 +18,19 @@ def main() -> None:
     """ReplayGate CLI."""
 
 
+def _spec_for(scenario_name: str):
+    try:
+        return EXAMPLES[scenario_name]
+    except KeyError:
+        raise typer.BadParameter(
+            f"unknown scenario {scenario_name!r}; choose from: {', '.join(EXAMPLES)}"
+        ) from None
+
+
 @app.command()
 def record(scenario_name: str, out_dir: str, channel: str = "direct") -> None:
     """Record a built-in scenario into a fixture directory (offline)."""
-    spec = EXAMPLES[scenario_name]
+    spec = _spec_for(scenario_name)
     fixture = record_conversation(
         agent_factory=spec.build_agent,
         inner_llm=scripted_llm_for(scenario_name),
@@ -58,8 +67,11 @@ def record_live(
 
     from replaygate.capture.providers import make_client
 
-    spec = EXAMPLES[scenario_name]
-    inner_llm = make_client(provider, model=model)
+    spec = _spec_for(scenario_name)
+    try:
+        inner_llm = make_client(provider, model=model)
+    except ValueError as e:
+        raise typer.BadParameter(str(e)) from None
     fixture = record_conversation(
         agent_factory=spec.build_agent,
         inner_llm=inner_llm,
@@ -77,8 +89,16 @@ def record_live(
 @app.command()
 def replay(fixture_dir: str) -> None:
     """Replay a recorded fixture offline and diff it against the recording (zero network)."""
-    fixture = read_fixture(fixture_dir)
-    spec = EXAMPLES[fixture.conversation.scenario]
+    try:
+        fixture = read_fixture(fixture_dir)
+    except (FileNotFoundError, NotADirectoryError) as e:
+        typer.echo(f"cannot read fixture at {fixture_dir!r}: {e}", err=True)
+        raise typer.Exit(2) from None
+    scenario = fixture.conversation.scenario
+    if scenario not in EXAMPLES:
+        typer.echo(f"fixture scenario {scenario!r} is not a built-in example", err=True)
+        raise typer.Exit(2)
+    spec = EXAMPLES[scenario]
     replayed = replay_conversation(fixture, spec.build_agent, spec.tools())
     diffs = diff_conversations(fixture.conversation, replayed)
     if diffs:
