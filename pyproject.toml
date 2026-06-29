@@ -16,6 +16,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
+# Live recording against real providers. anthropic ships in core deps; openai
+# covers OpenAI, OpenRouter, and Ollama (all OpenAI-compatible).
+providers = ["openai>=1.0", "python-dotenv>=1.0"]
 
 [project.scripts]
 replaygate = "replaygate.cli.main:app"

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from replaygate.capture.adapters import DirectAdapter, Scenario
 from replaygate.capture.llm import LLMResponse
 from replaygate.capture.record import record_conversation
-from replaygate.examples.booking_agent import BookingAgent
+from replaygate.examples.booking_agent import BookingAgent, booking_tools
 
 TS = datetime(2026, 6, 28, tzinfo=timezone.utc)
 
@@ -29,6 +29,7 @@ def test_record_builds_fixture_with_turns_and_recordings():
         inner_llm=inner,
         scenario=scenario,
         adapter=DirectAdapter(),
+        tools=booking_tools(),
         agent_version="abc123",
         model="claude-haiku-4-5",
         recorded_at=TS,

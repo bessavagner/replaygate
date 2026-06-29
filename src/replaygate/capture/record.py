@@ -6,7 +6,7 @@ from typing import Callable, Protocol
 from replaygate.capture.adapters import ChannelAdapter, Scenario
 from replaygate.capture.llm import LLMClient, RecordingLLMClient
 from replaygate.capture.tools import ToolRecorder
-from replaygate.examples.booking_agent import AgentStep, booking_tools
+from replaygate.examples.booking_agent import AgentStep
 from replaygate.store.fixtures import Fixture, FixtureMeta
 from replaygate.trace.models import (
     Conversation,
@@ -26,6 +26,7 @@ def record_conversation(
     scenario: Scenario,
     adapter: ChannelAdapter,
     *,
+    tools: dict[str, Callable[..., dict]],
     agent_version: str,
     model: str,
     recorded_at: datetime,
@@ -33,7 +34,7 @@ def record_conversation(
     llm_recording: list[dict] = []
     tool_recording: list[dict] = []
     rec_llm = RecordingLLMClient(inner_llm, mode="record", recording=llm_recording)
-    rec_tools = ToolRecorder(booking_tools(), mode="record", recording=tool_recording)
+    rec_tools = ToolRecorder(tools, mode="record", recording=tool_recording)
     agent = agent_factory(rec_llm, rec_tools)
 
     history: list[dict] = []

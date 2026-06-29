@@ -1,23 +1,95 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import Callable
+
 from replaygate.capture.adapters import Scenario
 from replaygate.capture.llm import LLMClient, LLMResponse
+from replaygate.capture.tools import ToolRecorder
+from replaygate.examples.booking_agent import BookingAgent, booking_tools
+from replaygate.examples.profile_agent import ProfileAgent, menu_tools
+from replaygate.examples.support_agent import SupportAgent, support_tools
 
-BUILTIN_SCENARIOS: dict[str, Scenario] = {
-    "booking_happy": Scenario(
-        name="booking_happy",
-        user_turns=[["what slots are there on 2026-07-01?"], ["yes, book 3pm"]],
+
+@dataclass(frozen=True)
+class ExampleSpec:
+    """Everything the recorder needs to replay one built-in scenario offline."""
+
+    scenario: Scenario
+    build_agent: Callable[[LLMClient, ToolRecorder], object]
+    tools: Callable[[], dict[str, Callable[..., dict]]]
+    script: list[LLMResponse]
+    model: str = "claude-haiku-4-5"
+
+
+EXAMPLES: dict[str, ExampleSpec] = {
+    "booking_happy": ExampleSpec(
+        scenario=Scenario(
+            name="booking_happy",
+            user_turns=[["what slots are there on 2026-07-01?"], ["yes, book 3pm"]],
+        ),
+        build_agent=lambda llm, tools: BookingAgent(llm=llm, tools=tools),
+        tools=booking_tools,
+        script=[
+            LLMResponse(text="There are 10am and 3pm available.",
+                        tool_calls=[{"name": "search_slots", "arguments": {"date": "2026-07-01"}}]),
+            LLMResponse(text="Booked 3pm. See you then!",
+                        tool_calls=[{"name": "book_appointment", "arguments": {"slot": "3pm"}}]),
+        ],
+    ),
+    # SupportAgent — invariant: never re-ask for an order id given on an earlier turn.
+    "support_happy": ExampleSpec(
+        scenario=Scenario(
+            name="support_happy",
+            user_turns=[["my order ORD-1234 — has it shipped?"], ["any update on the delivery?"]],
+        ),
+        build_agent=lambda llm, tools: SupportAgent(llm=llm, tools=tools),
+        tools=support_tools,
+        script=[
+            LLMResponse(text="Let me check ORD-1234 for you."),
+            LLMResponse(text="ORD-1234 has shipped — ETA 2026-07-02."),
+        ],
+    ),
+    "support_reask_regression": ExampleSpec(
+        scenario=Scenario(
+            name="support_reask_regression",
+            user_turns=[["my order ORD-1234 — has it shipped?"], ["any update on the delivery?"]],
+        ),
+        build_agent=lambda llm, tools: SupportAgent(llm=llm, tools=tools, inject_regression=True),
+        tools=support_tools,
+        script=[
+            LLMResponse(text="Let me check ORD-1234 for you."),
+            LLMResponse(text="ORD-1234 has shipped — ETA 2026-07-02."),
+        ],
+    ),
+    # ProfileAgent — invariant: honor a dietary constraint set on an earlier turn.
+    "profile_happy": ExampleSpec(
+        scenario=Scenario(
+            name="profile_happy",
+            user_turns=[["hi, I'm vegan — no dairy please"], ["what should I order for dinner?"]],
+        ),
+        build_agent=lambda llm, tools: ProfileAgent(llm=llm, tools=tools),
+        tools=menu_tools,
+        script=[
+            LLMResponse(text="Noted — no dairy."),
+            LLMResponse(text="I recommend the veggie stir-fry."),
+        ],
+    ),
+    "profile_forgets_regression": ExampleSpec(
+        scenario=Scenario(
+            name="profile_forgets_regression",
+            user_turns=[["hi, I'm vegan — no dairy please"], ["what should I order for dinner?"]],
+        ),
+        build_agent=lambda llm, tools: ProfileAgent(llm=llm, tools=tools, inject_regression=True),
+        tools=menu_tools,
+        script=[
+            LLMResponse(text="Noted — no dairy."),
+            LLMResponse(text="I recommend the margherita pizza."),
+        ],
     ),
 }
 
-_SCRIPTS: dict[str, list[LLMResponse]] = {
-    "booking_happy": [
-        LLMResponse(text="There are 10am and 3pm available.",
-                    tool_calls=[{"name": "search_slots", "arguments": {"date": "2026-07-01"}}]),
-        LLMResponse(text="Booked 3pm. See you then!",
-                    tool_calls=[{"name": "book_appointment", "arguments": {"slot": "3pm"}}]),
-    ],
-}
+BUILTIN_SCENARIOS: dict[str, Scenario] = {name: spec.scenario for name, spec in EXAMPLES.items()}
 
 
 class _ScriptedLLM:
@@ -29,4 +101,4 @@ class _ScriptedLLM:
 
 
 def scripted_llm_for(scenario_name: str) -> LLMClient:
-    return _ScriptedLLM(list(_SCRIPTS[scenario_name]))
+    return _ScriptedLLM(list(EXAMPLES[scenario_name].script))

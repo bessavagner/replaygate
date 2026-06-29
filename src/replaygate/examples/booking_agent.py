@@ -21,6 +21,34 @@ def booking_tools() -> dict[str, Callable[..., dict]]:
     return {"search_slots": search_slots, "book_appointment": book_appointment}
 
 
+def booking_tool_schemas() -> list[dict]:
+    """Tool declarations sent to the LLM (neutral shape; translated per provider).
+
+    Distinct from booking_tools(): these tell the model what it *may* call;
+    booking_tools() is what actually runs when it does.
+    """
+    return [
+        {
+            "name": "search_slots",
+            "description": "List available appointment slots for a date (YYYY-MM-DD).",
+            "input_schema": {
+                "type": "object",
+                "properties": {"date": {"type": "string", "description": "Date as YYYY-MM-DD"}},
+                "required": ["date"],
+            },
+        },
+        {
+            "name": "book_appointment",
+            "description": "Book an appointment for a slot, only after the user confirms.",
+            "input_schema": {
+                "type": "object",
+                "properties": {"slot": {"type": "string", "description": "Slot to book, e.g. 3pm"}},
+                "required": ["slot"],
+            },
+        },
+    ]
+
+
 class AgentStep(BaseModel):
     assistant_text: str
     tool_calls: list[ToolCall]
@@ -36,7 +64,7 @@ class BookingAgent:
         self._counter = 0
 
     def respond(self, history: list[dict]) -> AgentStep:
-        resp = self._llm.create("claude-haiku-4-5", self.SYSTEM, history, [])
+        resp = self._llm.create("claude-haiku-4-5", self.SYSTEM, history, booking_tool_schemas())
         calls: list[ToolCall] = []
         requested = list(resp.tool_calls)
         if self._inject_regression and not requested:
