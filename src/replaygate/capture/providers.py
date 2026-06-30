@@ -81,6 +81,12 @@ class AnthropicClient:
 class OpenAICompatibleClient:
     """Calls any OpenAI-compatible chat-completions endpoint via the ``openai`` SDK."""
 
+    # Which request field caps output length. OpenAI proper requires
+    # ``max_completion_tokens`` for its reasoning models (gpt-5.x, o-series) and
+    # rejects ``max_tokens``; the OpenAI-compatible endpoints (OpenRouter, Ollama,
+    # Gemini) still take the older ``max_tokens``, so that stays the default.
+    token_param: str = "max_tokens"
+
     def __init__(self, *, model: str | None = None, api_key: str | None = None,
                  base_url: str | None = None, max_tokens: int = 4096, client: Any = None):
         if client is None:
@@ -95,7 +101,7 @@ class OpenAICompatibleClient:
         oai_messages = ([{"role": "system", "content": system}] if system else []) + messages
         kwargs: dict[str, Any] = {
             "model": self._model or model,
-            "max_tokens": self._max_tokens,
+            self.token_param: self._max_tokens,
             "messages": oai_messages,
         }
         if tools:
@@ -118,6 +124,8 @@ class OpenAICompatibleClient:
 
 class OpenAIClient(OpenAICompatibleClient):
     """OpenAI proper (api.openai.com); reads ``OPENAI_API_KEY``."""
+
+    token_param = "max_completion_tokens"  # required by gpt-5.x / o-series; accepted by gpt-4o
 
 
 class OpenRouterClient(OpenAICompatibleClient):
