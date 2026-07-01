@@ -1,0 +1,30 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Set up Python
+        run: uv python install 3.12
+      - name: Install project
+        run: uv pip install --system -e '.[dev,providers]'
+      - name: Lint
+        run: ruff check .
+      - name: Test (offline suite)
+        run: python -m pytest -q
+      - name: Regression gate (end-to-end through the CLI)
+        run: |
+          replaygate record booking_happy ./_fx_happy
+          replaygate regress ./_fx_happy
+          replaygate record booking_books_without_confirm_regression ./_fx_bad
+          if replaygate regress ./_fx_bad; then
+            echo "expected the regressed fixture to FAIL the gate, but it passed"; exit 1
+          fi
