@@ -8,3 +8,7 @@ __pycache__/
 node_modules/
 dist/
 .env
+
+# local agent/session state and working docs (not part of the project)
+.omc/
+docs/
