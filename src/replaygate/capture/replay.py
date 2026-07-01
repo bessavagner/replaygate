@@ -33,11 +33,13 @@ def replay_conversation(
     registry resolves the miss, so replay continues over the candidate's real path.
     """
     on_miss = "live" if policy == "live" else "raise"
+    # Copy the recording lists so a live-fallback append serves this replay only
+    # and never mutates the caller's Fixture (which would leak into a later run).
     rec_llm = RecordingLLMClient(
-        inner=inner_llm, mode="replay", recording=fixture.llm_recording, on_miss=on_miss
+        inner=inner_llm, mode="replay", recording=list(fixture.llm_recording), on_miss=on_miss
     )
     rec_tools = ToolRecorder(
-        tools, mode="replay", recording=fixture.tool_recording, on_miss=on_miss
+        tools, mode="replay", recording=list(fixture.tool_recording), on_miss=on_miss
     )
     agent = agent_factory(rec_llm, rec_tools)
 

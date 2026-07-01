@@ -71,6 +71,16 @@ def test_regressed_candidate_fails_its_invariant_offline():
     assert any(not r.passed for r in report.results)
 
 
+def test_live_fallback_does_not_mutate_the_fixture():
+    fx = _record_support()
+    cand = CANDIDATES["support_reworded"]
+    llm_len_before = len(fx.llm_recording)
+    tool_len_before = len(fx.tool_recording)
+    run_regress(fx, cand.build_agent, cand.tools(), policy="live", inner_llm=_FakeLLM())
+    assert len(fx.llm_recording) == llm_len_before
+    assert len(fx.tool_recording) == tool_len_before
+
+
 def test_live_policy_requires_inner_llm():
     fx = _record_support()
     cand = CANDIDATES["support_control"]
