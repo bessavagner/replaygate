@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import string
 from datetime import datetime
 from typing import Literal
 
@@ -72,7 +73,8 @@ class Conversation(BaseModel):
                 break
             for msg in turn.user_messages:
                 text = msg.content.strip().lower()
-                if any(text == a or text.startswith(a + " ") or a in text.split() for a in _AFFIRMATIONS):
+                tokens = [t.strip(string.punctuation) for t in text.split()]
+                if any(text == a or text.startswith(a + " ") or a in tokens for a in _AFFIRMATIONS):
                     return True
         return False
 
