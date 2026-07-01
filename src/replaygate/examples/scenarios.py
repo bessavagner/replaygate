@@ -8,7 +8,7 @@ from replaygate.capture.llm import LLMClient, LLMResponse
 from replaygate.capture.tools import ToolRecorder
 from replaygate.examples.booking_agent import BookingAgent, booking_tools
 from replaygate.examples.profile_agent import ProfileAgent, menu_tools
-from replaygate.examples.support_agent import SupportAgent, support_tools
+from replaygate.examples.support_agent import RewordedSupportAgent, SupportAgent, support_tools
 
 
 @dataclass(frozen=True)
@@ -121,3 +121,30 @@ class _ScriptedLLM:
 
 def scripted_llm_for(scenario_name: str) -> LLMClient:
     return _ScriptedLLM(list(EXAMPLES[scenario_name].script))
+
+
+@dataclass(frozen=True)
+class CandidateSpec:
+    """A candidate agent B to replay against a fixture recorded from agent A."""
+
+    build_agent: Callable[[LLMClient, ToolRecorder], object]
+    tools: Callable[[], dict[str, Callable[..., dict]]]
+
+
+CANDIDATES: dict[str, CandidateSpec] = {
+    # Identical to the recorded agent — replays with zero divergence (back-compat control).
+    "support_control": CandidateSpec(
+        build_agent=lambda llm, tools: SupportAgent(llm=llm, tools=tools),
+        tools=support_tools,
+    ),
+    # Reworded system prompt, same behavior — diverges under pinned, holds under live.
+    "support_reworded": CandidateSpec(
+        build_agent=lambda llm, tools: RewordedSupportAgent(llm=llm, tools=tools),
+        tools=support_tools,
+    ),
+    # Genuinely broken: re-asks for an order id already given — fails its invariant offline.
+    "support_regressed": CandidateSpec(
+        build_agent=lambda llm, tools: SupportAgent(llm=llm, tools=tools, inject_regression=True),
+        tools=support_tools,
+    ),
+}
