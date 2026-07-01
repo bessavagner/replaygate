@@ -77,6 +77,17 @@ meta.json             # scenario, agent version, model, recorded_at
 Timing spans are stored in DuckDB with attributes aligned to OpenTelemetry's GenAI semantic
 conventions (`gen_ai.request.model`, `gen_ai.agent.name`, …).
 
+Replay a *different* candidate agent against a recording and gate on the same invariants. A
+key-miss means the candidate left the recorded trajectory — under the default `pinned` policy
+that's a first-class *divergence* (exit 3); `--policy live` falls back to the real provider and
+evaluates invariants over the candidate's actual run:
+
+```bash
+replaygate regress ./fx --candidate support_reworded               # exit 3: diverged (offline)
+replaygate regress ./fx --candidate support_reworded --policy live # invariants over the real run
+replaygate regress ./fx --candidate support_regressed              # exit 1: invariant violated
+```
+
 ## The trace contract
 
 Everything hangs off a small tree of Pydantic models — `Message`, `ToolCall`, `Turn`,
@@ -101,8 +112,6 @@ network calls.
 - Wire OpenTelemetry spans through the capture loop now that there's a consumer for them.
 - **Channel adapters** beyond `direct` — WhatsApp first, for agents deployed on real messaging
   channels.
-- Cross-version regress: replay a fixture recorded from one agent version against a *different*
-  candidate agent, not just the scenario's own agent.
 
 ## Build log
 
