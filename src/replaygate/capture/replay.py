@@ -9,9 +9,10 @@ replays identically.
 
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Literal
 
-from replaygate.capture.llm import RecordingLLMClient
+from replaygate.capture.errors import DivergenceError
+from replaygate.capture.llm import LLMClient, RecordingLLMClient
 from replaygate.capture.tools import ToolRecorder
 from replaygate.store.fixtures import Fixture
 from replaygate.trace.models import Conversation, Message, Turn
@@ -21,10 +22,23 @@ def replay_conversation(
     fixture: Fixture,
     agent_factory: Callable[[RecordingLLMClient, ToolRecorder], object],
     tools: dict[str, Callable[..., dict]],
+    *,
+    policy: Literal["pinned", "live"] = "pinned",
+    inner_llm: LLMClient | None = None,
 ) -> Conversation:
-    """Re-run the agent over the fixture's user turns, served from the recording."""
-    rec_llm = RecordingLLMClient(inner=None, mode="replay", recording=fixture.llm_recording)
-    rec_tools = ToolRecorder(tools, mode="replay", recording=fixture.tool_recording)
+    """Re-run the agent over the fixture's user turns, served from the recording.
+
+    Under ``pinned`` a call absent from the recording raises ``DivergenceError``
+    (with ``turn_index`` set). Under ``live`` the injected ``inner_llm`` / tool
+    registry resolves the miss, so replay continues over the candidate's real path.
+    """
+    on_miss = "live" if policy == "live" else "raise"
+    rec_llm = RecordingLLMClient(
+        inner=inner_llm, mode="replay", recording=fixture.llm_recording, on_miss=on_miss
+    )
+    rec_tools = ToolRecorder(
+        tools, mode="replay", recording=fixture.tool_recording, on_miss=on_miss
+    )
     agent = agent_factory(rec_llm, rec_tools)
 
     ts = fixture.conversation.session_meta.started_at
@@ -33,7 +47,11 @@ def replay_conversation(
     for turn in fixture.conversation.turns:
         for m in turn.user_messages:
             history.append({"role": "user", "content": m.content})
-        step = agent.respond(history)
+        try:
+            step = agent.respond(history)
+        except DivergenceError as e:
+            e.turn_index = turn.index
+            raise
         history.append({"role": "assistant", "content": step.assistant_text})
         turns.append(Turn(
             index=turn.index,
