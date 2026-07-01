@@ -25,6 +25,8 @@ jobs:
           replaygate record booking_happy ./_fx_happy
           replaygate regress ./_fx_happy
           replaygate record booking_books_without_confirm_regression ./_fx_bad
-          if replaygate regress ./_fx_bad; then
-            echo "expected the regressed fixture to FAIL the gate, but it passed"; exit 1
+          replaygate regress ./_fx_bad && rc=0 || rc=$?
+          if [ "$rc" -ne 1 ]; then
+            echo "expected the regressed fixture to FAIL the gate with exit 1 (invariant violation), got exit $rc"
+            exit 1
           fi

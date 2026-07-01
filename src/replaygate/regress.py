@@ -24,6 +24,9 @@ class RegressReport(BaseModel):
 
     @property
     def passed(self) -> bool:
+        # Vacuously True when no invariants are registered for the scenario. The
+        # CLI guards that case explicitly (exit 2) before consulting `passed`, so
+        # an unguarded scenario never slips through as a false pass.
         return all(r.passed for r in self.results)
 
 
