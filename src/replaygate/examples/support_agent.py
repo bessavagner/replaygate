@@ -71,3 +71,14 @@ class SupportAgent:
             name="lookup_order", arguments={"order_id": order_id}, result=result,
             call_id=f"call-{self._counter}",
         )])
+
+
+class RewordedSupportAgent(SupportAgent):
+    """Behavior-identical to :class:`SupportAgent` but with a reworded system prompt.
+
+    Same trajectory, different request key — this is what a harmless prompt tweak
+    looks like to a content-keyed recorder: a divergence under the ``pinned``
+    policy, but invariants still hold under ``live``.
+    """
+
+    SYSTEM = "You're a helpful support assistant. Always reuse an order id the customer already provided."

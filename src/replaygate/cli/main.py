@@ -7,7 +7,7 @@ import typer
 from replaygate.capture.adapters import DirectAdapter
 from replaygate.capture.record import record_conversation
 from replaygate.capture.replay import diff_conversations, replay_conversation
-from replaygate.examples.scenarios import EXAMPLES, scripted_llm_for
+from replaygate.examples.scenarios import CANDIDATES, EXAMPLES, scripted_llm_for
 from replaygate.regress import run_regress
 from replaygate.store.fixtures import read_fixture, write_fixture
 
@@ -111,8 +111,22 @@ def replay(fixture_dir: str) -> None:
 
 
 @app.command()
-def regress(fixture_dir: str) -> None:
-    """Replay a fixture and assert its cross-turn invariants — the regression gate."""
+def regress(
+    fixture_dir: str,
+    candidate: str = typer.Option(
+        None, help="candidate agent from the registry; default replays the fixture's own agent"
+    ),
+    policy: str = typer.Option(
+        "pinned", help="pinned (offline) | live (network fallback on divergence)"
+    ),
+    provider: str = typer.Option("anthropic", help="provider for --policy live"),
+) -> None:
+    """Replay a fixture and assert its cross-turn invariants — the regression gate.
+
+    With --candidate, replay a *different* agent against the recording. Under
+    --policy pinned a divergence is exit 3; under live it falls back to the
+    provider and evaluates invariants over the candidate's real trajectory.
+    """
     try:
         fixture = read_fixture(fixture_dir)
     except (FileNotFoundError, NotADirectoryError) as e:
@@ -122,8 +136,44 @@ def regress(fixture_dir: str) -> None:
     if scenario not in EXAMPLES:
         typer.echo(f"fixture scenario {scenario!r} is not a built-in example", err=True)
         raise typer.Exit(2)
-    spec = EXAMPLES[scenario]
-    report = run_regress(fixture, spec.build_agent, spec.tools())
+    if policy not in ("pinned", "live"):
+        raise typer.BadParameter("policy must be 'pinned' or 'live'")
+
+    if candidate is None:
+        spec = EXAMPLES[scenario]
+        build_agent, tools = spec.build_agent, spec.tools()
+    else:
+        if candidate not in CANDIDATES:
+            raise typer.BadParameter(
+                f"unknown candidate {candidate!r}; choose from: {', '.join(CANDIDATES)}"
+            )
+        cand = CANDIDATES[candidate]
+        build_agent, tools = cand.build_agent, cand.tools()
+
+    inner_llm = None
+    if policy == "live":
+        try:
+            from dotenv import load_dotenv
+
+            load_dotenv()
+        except ModuleNotFoundError:
+            pass  # .env support is optional; env vars may already be set
+        from replaygate.capture.providers import make_client
+
+        try:
+            inner_llm = make_client(provider, model=fixture.meta.model)
+        except ValueError as e:
+            raise typer.BadParameter(str(e)) from None
+
+    report = run_regress(fixture, build_agent, tools, policy=policy, inner_llm=inner_llm)
+
+    if report.status == "diverged":
+        typer.echo(f"regress DIVERGED ({scenario}): candidate left the recorded trajectory")
+        for d in report.divergences:
+            typer.echo(f"  - turn {d.turn_index} [{d.kind}]: {d.summary}")
+        typer.echo("  invariants not evaluated (candidate left recorded trajectory)")
+        raise typer.Exit(3)
+
     if not report.results:
         typer.echo(f"no invariants registered for scenario {scenario!r}", err=True)
         raise typer.Exit(2)
