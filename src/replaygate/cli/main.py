@@ -8,6 +8,7 @@ from replaygate.capture.adapters import DirectAdapter
 from replaygate.capture.record import record_conversation
 from replaygate.capture.replay import diff_conversations, replay_conversation
 from replaygate.examples.scenarios import EXAMPLES, scripted_llm_for
+from replaygate.regress import run_regress
 from replaygate.store.fixtures import read_fixture, write_fixture
 
 app = typer.Typer(help="ReplayGate — regression testing for multi-turn AI agents")
@@ -107,3 +108,29 @@ def replay(fixture_dir: str) -> None:
             typer.echo(f"  - {d}")
         raise typer.Exit(1)
     typer.echo(f"replay OK — {len(replayed.turns)} turns reproduced offline, zero network")
+
+
+@app.command()
+def regress(fixture_dir: str) -> None:
+    """Replay a fixture and assert its cross-turn invariants — the regression gate."""
+    try:
+        fixture = read_fixture(fixture_dir)
+    except (FileNotFoundError, NotADirectoryError) as e:
+        typer.echo(f"cannot read fixture at {fixture_dir!r}: {e}", err=True)
+        raise typer.Exit(2) from None
+    scenario = fixture.conversation.scenario
+    if scenario not in EXAMPLES:
+        typer.echo(f"fixture scenario {scenario!r} is not a built-in example", err=True)
+        raise typer.Exit(2)
+    spec = EXAMPLES[scenario]
+    report = run_regress(fixture, spec.build_agent, spec.tools())
+    if not report.results:
+        typer.echo(f"no invariants registered for scenario {scenario!r}", err=True)
+        raise typer.Exit(2)
+    for r in report.results:
+        typer.echo(f"  [{'PASS' if r.passed else 'FAIL'}] {r.name}: {r.detail}")
+    failed = [r for r in report.results if not r.passed]
+    if failed:
+        typer.echo(f"regress FAILED ({scenario}): {len(failed)} invariant(s) violated")
+        raise typer.Exit(1)
+    typer.echo(f"regress OK ({scenario}): {len(report.results)} invariant(s) held")
