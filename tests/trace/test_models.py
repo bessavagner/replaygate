@@ -31,3 +31,23 @@ def test_turn_collects_multi_message_user_turn():
     assert t.index == 0
     assert len(t.user_messages) == 2
     assert t.tool_calls == []
+
+
+def test_user_confirmed_before_ignores_trailing_punctuation():
+    from datetime import datetime, timezone
+
+    from replaygate.trace.models import Conversation, Message, SessionMeta, Turn
+
+    ts = datetime(2026, 6, 30, tzinfo=timezone.utc)
+    conv = Conversation(
+        id="c1", scenario="booking_happy", channel="direct",
+        session_meta=SessionMeta(session_id="s1", started_at=ts),
+        turns=[
+            Turn(index=0, user_messages=[Message(role="user", content="what slots?", ts=ts)]),
+            Turn(index=1, user_messages=[Message(role="user", content="yes, book 3pm", ts=ts)]),
+        ],
+    )
+    # Confirmation on turn 1 must count when we include turn 1 (index < 2).
+    assert conv.user_confirmed_before(2) is True
+    # It must NOT count when we only look at turn 0.
+    assert conv.user_confirmed_before(1) is False

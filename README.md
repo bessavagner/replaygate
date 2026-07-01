@@ -24,10 +24,10 @@ These are the bugs that survive a prompt tweak, pass every per-turn assertion, a
 production. ReplayGate exists to catch exactly this class — invariants like
 `user_confirmed_before(turn_index)` evaluated over the entire replayed conversation.
 
-> **Status: v0, record half.** The trace contract, span store, app-seam record/replay wrappers, a
-> channel adapter, and a `record` CLI are shipped and tested (20 tests, zero network).
-> Replay-and-diff, the cross-turn assertion suite, the `regress` command, and the CI gate are next —
-> see [Roadmap](#roadmap).
+> **Status: v0.** The trace contract, span store, app-seam record/replay wrappers, a channel
+> adapter, offline replay-and-diff, the **cross-turn invariant suite**, and the `record` / `replay`
+> / `regress` CLI are shipped and tested (fully offline). Channel adapters beyond `direct` and
+> OpenTelemetry span emission through the capture loop are next — see [Roadmap](#roadmap).
 
 ## Channel-native by design
 
@@ -98,13 +98,11 @@ network calls.
 
 ## Roadmap
 
-- **Replay half:** feed `llm_recording` / `tool_recording` back in replay mode, run the recorded
-  conversation against the current agent, and diff the two into a `ConversationDiff`.
-- **Cross-turn assertion suite** over the replayed conversation (the `user_confirmed_before` class).
-- **`replaygate regress`** command + a CI gate that fails on divergence.
 - Wire OpenTelemetry spans through the capture loop now that there's a consumer for them.
 - **Channel adapters** beyond `direct` — WhatsApp first, for agents deployed on real messaging
   channels.
+- Cross-version regress: replay a fixture recorded from one agent version against a *different*
+  candidate agent, not just the scenario's own agent.
 
 ## Build log
 
