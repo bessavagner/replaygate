@@ -40,3 +40,55 @@ def test_booking_without_confirmation_fails():
     result = booked_only_after_confirmation(conv)
     assert result.passed is False
     assert "turn 1" in result.detail
+
+
+from replaygate.invariants import dietary_constraint_honored, order_id_never_reasked
+
+
+def _assistant(text):
+    return Message(role="assistant", content=text, ts=TS)
+
+
+def test_order_id_carried_forward_passes():
+    conv = _conv("support_happy", [
+        Turn(index=0, user_messages=[_user("my order ORD-1234 — has it shipped?")],
+             assistant_messages=[_assistant("Let me check ORD-1234.")]),
+        Turn(index=1, user_messages=[_user("any update?")],
+             assistant_messages=[_assistant("ORD-1234 has shipped.")]),
+    ])
+    assert order_id_never_reasked(conv).passed is True
+
+
+def test_order_id_reasked_fails():
+    conv = _conv("support_reask_regression", [
+        Turn(index=0, user_messages=[_user("my order ORD-1234 — has it shipped?")],
+             assistant_messages=[_assistant("Let me check ORD-1234.")]),
+        Turn(index=1, user_messages=[_user("any update?")],
+             assistant_messages=[_assistant("Sure — what's your order number?")]),
+    ])
+    result = order_id_never_reasked(conv)
+    assert result.passed is False
+    assert "turn 1" in result.detail
+
+
+def _rec_call(contains_dairy):
+    return ToolCall(name="recommend_dish", arguments={"avoid_dairy": not contains_dairy},
+                    result={"dish": "x", "contains_dairy": contains_dairy}, call_id="c1")
+
+
+def test_dietary_constraint_honored_passes():
+    conv = _conv("profile_happy", [
+        Turn(index=0, user_messages=[_user("hi, I'm vegan — no dairy please")]),
+        Turn(index=1, user_messages=[_user("what should I order?")], tool_calls=[_rec_call(False)]),
+    ])
+    assert dietary_constraint_honored(conv).passed is True
+
+
+def test_dietary_constraint_violated_fails():
+    conv = _conv("profile_forgets_regression", [
+        Turn(index=0, user_messages=[_user("hi, I'm vegan — no dairy please")]),
+        Turn(index=1, user_messages=[_user("what should I order?")], tool_calls=[_rec_call(True)]),
+    ])
+    result = dietary_constraint_honored(conv)
+    assert result.passed is False
+    assert "turn 1" in result.detail
