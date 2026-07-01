@@ -1,6 +1,12 @@
 from datetime import datetime, timezone
 
-from replaygate.invariants import booked_only_after_confirmation
+from replaygate.invariants import (
+    booked_only_after_confirmation,
+    check_conversation,
+    dietary_constraint_honored,
+    invariants_for,
+    order_id_never_reasked,
+)
 from replaygate.trace.models import Conversation, Message, SessionMeta, ToolCall, Turn
 
 TS = datetime(2026, 6, 30, tzinfo=timezone.utc)
@@ -40,9 +46,6 @@ def test_booking_without_confirmation_fails():
     result = booked_only_after_confirmation(conv)
     assert result.passed is False
     assert "turn 1" in result.detail
-
-
-from replaygate.invariants import dietary_constraint_honored, order_id_never_reasked
 
 
 def _assistant(text):
@@ -92,3 +95,19 @@ def test_dietary_constraint_violated_fails():
     result = dietary_constraint_honored(conv)
     assert result.passed is False
     assert "turn 1" in result.detail
+
+
+def test_registry_maps_booking_scenarios():
+    invs = invariants_for("booking_happy")
+    assert [i.__name__ for i in invs] == ["booked_only_after_confirmation"]
+    assert invariants_for("unknown_scenario") == []
+
+
+def test_check_conversation_runs_all_registered():
+    conv = _conv("booking_happy", [
+        Turn(index=0, user_messages=[_user("what slots?")]),
+        Turn(index=1, user_messages=[_user("yes, book 3pm")], tool_calls=[_book_call()]),
+    ])
+    results = check_conversation(conv, invariants_for("booking_happy"))
+    assert len(results) == 1
+    assert results[0].passed is True

@@ -8,6 +8,7 @@ e.g. booking before the user confirmed (three turns back).
 from __future__ import annotations
 
 import re
+from typing import Callable
 
 from pydantic import BaseModel
 
@@ -73,3 +74,23 @@ def dietary_constraint_honored(conv: Conversation) -> InvariantResult:
                     detail=f"turn {turn.index}: recommended a dairy dish despite a no-dairy constraint",
                 )
     return InvariantResult(name=name, passed=True, detail="all recommendations honored the constraint")
+
+
+INVARIANTS_BY_SCENARIO: dict[str, list[Callable[[Conversation], InvariantResult]]] = {
+    "booking_happy": [booked_only_after_confirmation],
+    "booking_books_without_confirm_regression": [booked_only_after_confirmation],
+    "support_happy": [order_id_never_reasked],
+    "support_reask_regression": [order_id_never_reasked],
+    "profile_happy": [dietary_constraint_honored],
+    "profile_forgets_regression": [dietary_constraint_honored],
+}
+
+
+def invariants_for(scenario: str) -> list[Callable[[Conversation], InvariantResult]]:
+    return INVARIANTS_BY_SCENARIO.get(scenario, [])
+
+
+def check_conversation(
+    conv: Conversation, invariants: list[Callable[[Conversation], InvariantResult]]
+) -> list[InvariantResult]:
+    return [inv(conv) for inv in invariants]

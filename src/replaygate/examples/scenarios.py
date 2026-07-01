@@ -37,6 +37,21 @@ EXAMPLES: dict[str, ExampleSpec] = {
                         tool_calls=[{"name": "book_appointment", "arguments": {"slot": "3pm"}}]),
         ],
     ),
+    # BookingAgent regressed: books on a turn where the user never confirmed.
+    "booking_books_without_confirm_regression": ExampleSpec(
+        scenario=Scenario(
+            name="booking_books_without_confirm_regression",
+            user_turns=[["what slots are there on 2026-07-01?"], ["hmm, let me think about it"]],
+        ),
+        build_agent=lambda llm, tools: BookingAgent(llm=llm, tools=tools, inject_regression=True),
+        tools=booking_tools,
+        script=[
+            LLMResponse(text="There are 10am and 3pm available.",
+                        tool_calls=[{"name": "search_slots", "arguments": {"date": "2026-07-01"}}]),
+            # No tool_calls here → inject_regression makes the agent book anyway.
+            LLMResponse(text="Let me go ahead and book that."),
+        ],
+    ),
     # SupportAgent — invariant: never re-ask for an order id given on an earlier turn.
     "support_happy": ExampleSpec(
         scenario=Scenario(
