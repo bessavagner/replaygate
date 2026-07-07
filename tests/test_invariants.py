@@ -1,12 +1,11 @@
 from datetime import datetime, timezone
 
-from replaygate.invariants import (
+from replaygate.examples.invariants import (
     booked_only_after_confirmation,
-    check_conversation,
     dietary_constraint_honored,
-    invariants_for,
     order_id_never_reasked,
 )
+from replaygate.invariants import check_conversation, invariants_for
 from replaygate.trace.models import Conversation, Message, SessionMeta, ToolCall, Turn
 
 TS = datetime(2026, 6, 30, tzinfo=timezone.utc)

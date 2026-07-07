@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import string
 from datetime import datetime
 from typing import Literal
 
@@ -43,9 +42,6 @@ class Turn(BaseModel):
     tool_calls: list[ToolCall] = Field(default_factory=list)
 
 
-_AFFIRMATIONS = {"yes", "yep", "yeah", "sure", "ok", "okay", "confirm", "please do", "go ahead"}
-
-
 class SessionMeta(BaseModel):
     session_id: str
     started_at: datetime
@@ -66,17 +62,6 @@ class Conversation(BaseModel):
 
     def tool_results(self) -> list[ToolCall]:
         return [tc for tc in self.all_tool_calls() if tc.result is not None]
-
-    def user_confirmed_before(self, turn_index: int) -> bool:
-        for turn in self.turns:
-            if turn.index >= turn_index:
-                break
-            for msg in turn.user_messages:
-                text = msg.content.strip().lower()
-                tokens = [t.strip(string.punctuation) for t in text.split()]
-                if any(text == a or text.startswith(a + " ") or a in tokens for a in _AFFIRMATIONS):
-                    return True
-        return False
 
 
 class SpanRecord(BaseModel):

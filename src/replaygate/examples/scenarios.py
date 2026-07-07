@@ -6,6 +6,7 @@ from typing import Callable
 from replaygate.capture.adapters import Scenario
 from replaygate.capture.llm import LLMClient, LLMResponse
 from replaygate.capture.tools import ToolRecorder
+from replaygate.examples import invariants as _invariants  # noqa: F401  # registers scenario invariants
 from replaygate.examples.booking_agent import BookingAgent, booking_tools
 from replaygate.examples.profile_agent import ProfileAgent, menu_tools
 from replaygate.examples.support_agent import RewordedSupportAgent, SupportAgent, support_tools

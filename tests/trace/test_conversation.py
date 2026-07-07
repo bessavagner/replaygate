@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from replaygate.examples.invariants import user_confirmed_before
 from replaygate.trace.models import (
     Conversation,
     Message,
@@ -27,8 +28,8 @@ def test_user_confirmed_before_detects_affirmation():
         Turn(index=1, user_messages=[Message(role="user", content="yes please", ts=TS)]),
         Turn(index=2, tool_calls=[ToolCall(name="book_appointment", arguments={}, call_id="c")]),
     ])
-    assert conv.user_confirmed_before(2) is True
-    assert conv.user_confirmed_before(1) is False
+    assert user_confirmed_before(conv, 2) is True
+    assert user_confirmed_before(conv, 1) is False
 
 
 def test_all_tool_calls_flattens():
