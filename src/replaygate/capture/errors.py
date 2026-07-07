@@ -11,7 +11,7 @@ class DivergenceError(KeyError):
     carrying structured fields the regress gate turns into a ``Divergence`` outcome.
     """
 
-    def __init__(self, kind: Literal["llm", "tool"], summary: str, key: str | None = None):
+    def __init__(self, kind: Literal["llm", "tool", "judge"], summary: str, key: str | None = None):
         self.kind = kind
         self.summary = summary
         self.key = key
