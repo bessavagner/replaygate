@@ -22,12 +22,13 @@ the right tool, stay under budget. That structurally misses the regressions that
 
 These are the bugs that survive a prompt tweak, pass every per-turn assertion, and break in
 production. ReplayGate exists to catch exactly this class — invariants like
-`user_confirmed_before(turn_index)` evaluated over the entire replayed conversation.
+`booked_only_after_confirmation` evaluated over the entire replayed conversation.
 
 > **Status: v0.** The trace contract, span store, app-seam record/replay wrappers, a channel
-> adapter, offline replay-and-diff, the **cross-turn invariant suite**, and the `record` / `replay`
-> / `regress` CLI are shipped and tested (fully offline). Channel adapters beyond `direct` and
-> OpenTelemetry span emission through the capture loop are next — see [Roadmap](#roadmap).
+> adapter, offline replay-and-diff, the **cross-turn invariant suite**, OpenTelemetry span emission
+> through the capture loop, and the `record` / `replay` / `regress` CLI are shipped and tested
+> (fully offline). A semantic judge, a read-only dashboard, and channel adapters beyond `direct`
+> are next — see [Roadmap](#roadmap).
 
 ## Channel-native by design
 
@@ -91,16 +92,17 @@ replaygate regress ./fx --candidate support_regressed              # exit 1: inv
 ## The trace contract
 
 Everything hangs off a small tree of Pydantic models — `Message`, `ToolCall`, `Turn`,
-`Conversation`. `Conversation` carries the query helpers the regression detector needs, e.g.
-`user_confirmed_before(turn_index)`. The bundled booking agent ships with an `inject_regression`
-flag that trips the "booked before confirmation" defect on demand — a reference target for the
-replay-and-diff work.
+`Conversation`. `Conversation` carries the cross-turn query helpers the invariants need
+(`all_tool_calls`, `tool_results`); scenario-specific predicates like `user_confirmed_before` live
+with the example invariants that use them (`replaygate.examples.invariants`). The bundled booking
+agent ships with an `inject_regression` flag that trips the "booked before confirmation" defect on
+demand — a reference target for the replay-and-diff work.
 
 ## Develop
 
 ```bash
 uv pip install -e '.[dev]'
-python -m pytest -q     # 20 passed, fully offline
+python -m pytest -q     # 78 passed, fully offline
 ruff check .
 ```
 
@@ -109,7 +111,10 @@ network calls.
 
 ## Roadmap
 
-- Wire OpenTelemetry spans through the capture loop now that there's a consumer for them.
+- **Semantic judge** — an LLM judge for the dimensions deterministic predicates can't cover (goal
+  completion, relevance, tone), behind a flag and kept out of the deterministic PR gate.
+- **Read-only dashboard** — a baseline-vs-current conversation diff view with divergence highlights
+  and invariant chips, deployed as a live demo.
 - **Channel adapters** beyond `direct` — WhatsApp first, for agents deployed on real messaging
   channels.
 
@@ -117,3 +122,7 @@ network calls.
 
 I'm building ReplayGate in public. Follow the series at
 [bessavagner.com/building/replaygate](https://bessavagner.com/building/replaygate/).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
