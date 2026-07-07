@@ -62,6 +62,30 @@ def test_judge_record_then_regress_replays_offline(tmp_path, monkeypatch):
     assert "no recorded verdict" not in (res.stdout + res.stderr)
 
 
+def test_judge_record_missing_fixture_is_exit_2(tmp_path):
+    result = runner.invoke(app, ["judge-record", str(tmp_path / "nope")])
+    assert result.exit_code == 2
+
+
+def test_judge_record_non_builtin_scenario_is_exit_2(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+
+    fake = SimpleNamespace(conversation=SimpleNamespace(scenario="not_a_real_scenario"))
+    monkeypatch.setattr("replaygate.cli.main.read_fixture", lambda d: fake)
+    result = runner.invoke(app, ["judge-record", str(tmp_path)])
+    assert result.exit_code == 2
+    assert "not a built-in example" in (result.stdout + result.stderr)
+
+
+def test_judge_record_no_dimensions_is_exit_2(tmp_path, monkeypatch):
+    out = str(tmp_path)
+    _write("booking_happy", out)
+    monkeypatch.setattr("replaygate.cli.main.dimensions_for", lambda s: [])
+    result = runner.invoke(app, ["judge-record", out])
+    assert result.exit_code == 2
+    assert "no judge dimensions registered" in (result.stdout + result.stderr)
+
+
 def test_record_judge_overwrites_and_is_idempotent(tmp_path):
     out = str(tmp_path)
     _write("booking_happy", out)

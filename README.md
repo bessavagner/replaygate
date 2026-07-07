@@ -110,6 +110,11 @@ environment (or a local `.env`) and defaults to `claude-opus-4-8` (override with
 Re-running it overwrites the fixture's prior verdict. Without a recorded verdict, `regress
 --judge` is a no-op advisory ("no recorded verdict") and `--judge-gate` cannot fail the run.
 
+A verdict is keyed to the exact conversation it scored, so it only replays for the fixture's own
+agent. Running `regress --judge --candidate X` (or `--policy live`) judges a *different*
+trajectory, finds no matching verdict, and stays advisory — record a verdict for that candidate
+if you want one.
+
 `--judge` is **advisory** — it prints per-dimension scores but never changes the exit code.
 Gating is opt-in via `--judge-gate`, which fails the run (exit 4) if any judged dimension scores
 below `PASS_THRESHOLD`. The deterministic invariant gate stays authoritative either way.
