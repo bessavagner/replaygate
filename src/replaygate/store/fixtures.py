@@ -4,7 +4,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from replaygate.trace.models import Conversation, SpanRecord
 
@@ -20,6 +20,7 @@ class Fixture(BaseModel):
     conversation: Conversation
     llm_recording: list[dict]
     tool_recording: list[dict]
+    judge_recording: list[dict] = Field(default_factory=list)
     spans: list[SpanRecord]
     meta: FixtureMeta
 
@@ -30,6 +31,7 @@ def write_fixture(dir_path: str, fixture: Fixture) -> None:
     (d / "conversation.json").write_text(fixture.conversation.model_dump_json(indent=2))
     (d / "llm_recording.json").write_text(json.dumps(fixture.llm_recording, indent=2))
     (d / "tool_recording.json").write_text(json.dumps(fixture.tool_recording, indent=2))
+    (d / "judge_recording.json").write_text(json.dumps(fixture.judge_recording, indent=2))
     (d / "spans.jsonl").write_text("\n".join(s.model_dump_json() for s in fixture.spans))
     (d / "meta.json").write_text(fixture.meta.model_dump_json(indent=2))
 
@@ -38,10 +40,13 @@ def read_fixture(dir_path: str) -> Fixture:
     d = Path(dir_path)
     spans_text = (d / "spans.jsonl").read_text().strip()
     spans = [SpanRecord.model_validate_json(line) for line in spans_text.splitlines() if line]
+    jr_path = d / "judge_recording.json"
+    judge_recording = json.loads(jr_path.read_text()) if jr_path.exists() else []
     return Fixture(
         conversation=Conversation.model_validate_json((d / "conversation.json").read_text()),
         llm_recording=json.loads((d / "llm_recording.json").read_text()),
         tool_recording=json.loads((d / "tool_recording.json").read_text()),
+        judge_recording=judge_recording,
         spans=spans,
         meta=FixtureMeta.model_validate_json((d / "meta.json").read_text()),
     )

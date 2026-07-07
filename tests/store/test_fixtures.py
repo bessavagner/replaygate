@@ -15,6 +15,7 @@ def _fixture():
         conversation=conv,
         llm_recording=[{"request_key": "k1", "request": {}, "response": {"text": "hi"}}],
         tool_recording=[{"tool": "search_slots", "args": {}, "result": {"slots": []}}],
+        judge_recording=[{"judge_key": "jk1", "verdict": {"scenario": "booking", "verdicts": []}}],
         spans=[SpanRecord(trace_id="t1", span_id="s1", parent_id=None,
                           operation="chat", attributes={}, start_ns=1, end_ns=2)],
         meta=FixtureMeta(scenario="booking", agent_version="abc123", model="claude-haiku-4-5", recorded_at=TS),
@@ -35,3 +36,21 @@ def test_files_are_created(tmp_path):
     write_fixture(str(tmp_path / "fx"), _fixture())
     for name in ["conversation.json", "llm_recording.json", "tool_recording.json", "spans.jsonl", "meta.json"]:
         assert (tmp_path / "fx" / name).exists()
+
+
+def test_judge_recording_round_trips(tmp_path):
+    write_fixture(str(tmp_path / "fx"), _fixture())
+    loaded = read_fixture(str(tmp_path / "fx"))
+    assert loaded.judge_recording[0]["judge_key"] == "jk1"
+
+
+def test_judge_recording_file_is_written(tmp_path):
+    write_fixture(str(tmp_path / "fx"), _fixture())
+    assert (tmp_path / "fx" / "judge_recording.json").exists()
+
+
+def test_read_tolerates_missing_judge_recording(tmp_path):
+    write_fixture(str(tmp_path / "fx"), _fixture())
+    (tmp_path / "fx" / "judge_recording.json").unlink()  # simulate a pre-judge fixture
+    loaded = read_fixture(str(tmp_path / "fx"))
+    assert loaded.judge_recording == []

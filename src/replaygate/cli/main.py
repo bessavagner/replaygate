@@ -8,6 +8,8 @@ from replaygate.capture.adapters import DirectAdapter
 from replaygate.capture.record import record_conversation
 from replaygate.capture.replay import diff_conversations, replay_conversation
 from replaygate.examples.scenarios import CANDIDATES, EXAMPLES, scripted_llm_for
+from replaygate.judge.models import PASS_THRESHOLD
+from replaygate.judge.record import RecordingJudge
 from replaygate.regress import run_regress
 from replaygate.store.fixtures import read_fixture, write_fixture
 
@@ -120,6 +122,12 @@ def regress(
         "pinned", help="pinned (offline) | live (network fallback on divergence)"
     ),
     provider: str = typer.Option("anthropic", help="provider for --policy live"),
+    judge: bool = typer.Option(
+        False, "--judge", help="run the semantic judge; advisory (never changes the exit code)"
+    ),
+    judge_gate: bool = typer.Option(
+        False, "--judge-gate", help="fail the run if any judged dimension scores below threshold"
+    ),
 ) -> None:
     """Replay a fixture and assert its cross-turn invariants — the regression gate.
 
@@ -165,7 +173,15 @@ def regress(
         except ValueError as e:
             raise typer.BadParameter(str(e)) from None
 
-    report = run_regress(fixture, build_agent, tools, policy=policy, inner_llm=inner_llm)
+    judge_impl = None
+    if judge or judge_gate:
+        judge_impl = RecordingJudge(
+            inner=None, mode="replay", recording=fixture.judge_recording, on_miss="raise"
+        )
+
+    report = run_regress(
+        fixture, build_agent, tools, policy=policy, inner_llm=inner_llm, judge=judge_impl
+    )
 
     if report.status == "diverged":
         typer.echo(f"regress DIVERGED ({scenario}): candidate left the recorded trajectory")
@@ -179,8 +195,32 @@ def regress(
         raise typer.Exit(2)
     for r in report.results:
         typer.echo(f"  [{'PASS' if r.passed else 'FAIL'}] {r.name}: {r.detail}")
+
+    if judge or judge_gate:
+        verdict = report.judge_verdict
+        if verdict is None:
+            typer.echo("  judge: no recorded verdict for this fixture (advisory)", err=True)
+        else:
+            for v in verdict.verdicts:
+                typer.echo(f"  [judge] {v.dimension}: {v.score:.2f} — {v.rationale}")
+
     failed = [r for r in report.results if not r.passed]
     if failed:
         typer.echo(f"regress FAILED ({scenario}): {len(failed)} invariant(s) violated")
         raise typer.Exit(1)
+
+    gate_failures = (
+        report.judge_verdict.failures(PASS_THRESHOLD)
+        if (judge_gate and report.judge_verdict is not None)
+        else []
+    )
+    if gate_failures:
+        for v in gate_failures:
+            typer.echo(f"  JUDGE-GATE: {v.dimension} scored {v.score:.2f} (< {PASS_THRESHOLD})")
+        typer.echo(
+            f"regress JUDGE-GATE FAILED ({scenario}): {len(gate_failures)} dimension(s) "
+            "below threshold"
+        )
+        raise typer.Exit(4)
+
     typer.echo(f"regress OK ({scenario}): {len(report.results)} invariant(s) held")

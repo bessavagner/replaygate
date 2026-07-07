@@ -7,9 +7,11 @@ from replaygate.capture.adapters import Scenario
 from replaygate.capture.llm import LLMClient, LLMResponse
 from replaygate.capture.tools import ToolRecorder
 from replaygate.examples import invariants as _invariants  # noqa: F401  # registers scenario invariants
+from replaygate.examples import judge_dimensions as _judge_dimensions  # noqa: F401  # registers scenario dimensions
 from replaygate.examples.booking_agent import BookingAgent, booking_tools
 from replaygate.examples.profile_agent import ProfileAgent, menu_tools
 from replaygate.examples.support_agent import RewordedSupportAgent, SupportAgent, support_tools
+from replaygate.judge.models import DimensionVerdict, JudgeVerdict
 
 
 @dataclass(frozen=True)
@@ -122,6 +124,39 @@ class _ScriptedLLM:
 
 def scripted_llm_for(scenario_name: str) -> LLMClient:
     return _ScriptedLLM(list(EXAMPLES[scenario_name].script))
+
+
+_JUDGE_SCRIPT: dict[str, JudgeVerdict] = {
+    "booking_happy": JudgeVerdict(scenario="booking_happy", verdicts=[
+        DimensionVerdict(dimension="goal_completion", score=1.0, rationale="Booked the requested 3pm slot."),
+        DimensionVerdict(dimension="relevance", score=1.0, rationale="Stayed on the booking task."),
+        DimensionVerdict(dimension="tone", score=1.0, rationale="Friendly and clear."),
+    ]),
+    "support_happy": JudgeVerdict(scenario="support_happy", verdicts=[
+        DimensionVerdict(dimension="goal_completion", score=1.0, rationale="Answered the shipping status."),
+        DimensionVerdict(dimension="relevance", score=1.0, rationale="Addressed ORD-1234 directly."),
+        DimensionVerdict(dimension="tone", score=1.0, rationale="Helpful and concise."),
+    ]),
+    "profile_happy": JudgeVerdict(scenario="profile_happy", verdicts=[
+        DimensionVerdict(dimension="goal_completion", score=1.0, rationale="Recommended a compliant dish."),
+        DimensionVerdict(dimension="relevance", score=1.0, rationale="Honored the dietary constraint."),
+        DimensionVerdict(dimension="tone", score=1.0, rationale="Warm and clear."),
+    ]),
+}
+
+
+class ScriptedJudge:
+    """Deterministic judge for the offline suite — returns a canned verdict."""
+
+    def __init__(self, verdict: JudgeVerdict):
+        self._verdict = verdict
+
+    def judge(self, conversation, dimensions) -> JudgeVerdict:
+        return self._verdict
+
+
+def scripted_judge_for(scenario_name: str) -> ScriptedJudge:
+    return ScriptedJudge(_JUDGE_SCRIPT[scenario_name])
 
 
 @dataclass(frozen=True)

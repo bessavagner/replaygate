@@ -26,9 +26,9 @@ production. ReplayGate exists to catch exactly this class — invariants like
 
 > **Status: v0.** The trace contract, span store, app-seam record/replay wrappers, a channel
 > adapter, offline replay-and-diff, the **cross-turn invariant suite**, OpenTelemetry span emission
-> through the capture loop, and the `record` / `replay` / `regress` CLI are shipped and tested
-> (fully offline). A semantic judge, a read-only dashboard, and channel adapters beyond `direct`
-> are next — see [Roadmap](#roadmap).
+> through the capture loop, the `record` / `replay` / `regress` CLI, and an advisory **semantic
+> judge** (`--judge` / `--judge-gate`) are shipped and tested (fully offline). A read-only
+> dashboard and channel adapters beyond `direct` are next — see [Roadmap](#roadmap).
 
 ## Channel-native by design
 
@@ -89,6 +89,22 @@ replaygate regress ./fx --candidate support_reworded --policy live # invariants 
 replaygate regress ./fx --candidate support_regressed              # exit 1: invariant violated
 ```
 
+## Semantic judge (`--judge`)
+
+For dimensions a deterministic predicate can't express — goal completion, relevance, tone — a
+recorded judge verdict can be replayed alongside the invariants. Like the LLM/tool calls, judge
+calls are captured and replayed offline, keyed by the conversation and requested dimensions.
+
+```bash
+replaygate regress ./fx --judge       # per-dimension verdicts, advisory, fully offline
+replaygate regress ./fx --judge-gate  # opt-in: judge failures fail the run (exit 4)
+replaygate regress ./fx               # unchanged: deterministic gate only
+```
+
+`--judge` is **advisory** — it prints per-dimension scores but never changes the exit code.
+Gating is opt-in via `--judge-gate`, which fails the run (exit 4) if any judged dimension scores
+below `PASS_THRESHOLD`. The deterministic invariant gate stays authoritative either way.
+
 ## The trace contract
 
 Everything hangs off a small tree of Pydantic models — `Message`, `ToolCall`, `Turn`,
@@ -111,8 +127,9 @@ network calls.
 
 ## Roadmap
 
-- **Semantic judge** — an LLM judge for the dimensions deterministic predicates can't cover (goal
-  completion, relevance, tone), behind a flag and kept out of the deterministic PR gate.
+- **Semantic judge** — shipped. An LLM judge for the dimensions deterministic predicates can't
+  cover (goal completion, relevance, tone), behind `--judge` / `--judge-gate` and kept advisory,
+  out of the deterministic PR gate by default.
 - **Read-only dashboard** — a baseline-vs-current conversation diff view with divergence highlights
   and invariant chips, deployed as a live demo.
 - **Channel adapters** beyond `direct` — WhatsApp first, for agents deployed on real messaging
