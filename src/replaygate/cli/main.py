@@ -9,7 +9,8 @@ from replaygate.capture.record import record_conversation
 from replaygate.capture.replay import diff_conversations, replay_conversation
 from replaygate.examples.scenarios import CANDIDATES, EXAMPLES, scripted_llm_for
 from replaygate.judge.models import PASS_THRESHOLD
-from replaygate.judge.record import RecordingJudge
+from replaygate.judge.record import RecordingJudge, record_judge
+from replaygate.judge.registry import dimensions_for
 from replaygate.regress import run_regress
 from replaygate.store.fixtures import read_fixture, write_fixture
 
@@ -87,6 +88,48 @@ def record_live(
     )
     write_fixture(out_dir, fixture)
     typer.echo(f"recorded {scenario_name} live via {provider} → {out_dir}")
+
+
+@app.command(name="judge-record")
+def judge_record(
+    fixture_dir: str,
+    model: str = typer.Option(None, help="judge model override (default claude-opus-4-8)"),
+) -> None:
+    """Record semantic-judge verdicts into an existing fixture (live; uses Anthropic).
+
+    Runs the judge over the fixture's replayed conversation and persists the
+    per-dimension verdict into judge_recording.json, so `regress --judge` can replay
+    it fully offline. Reads ANTHROPIC_API_KEY from the environment (and a local .env).
+    """
+    try:
+        fixture = read_fixture(fixture_dir)
+    except (FileNotFoundError, NotADirectoryError) as e:
+        typer.echo(f"cannot read fixture at {fixture_dir!r}: {e}", err=True)
+        raise typer.Exit(2) from None
+    scenario = fixture.conversation.scenario
+    if scenario not in EXAMPLES:
+        typer.echo(f"fixture scenario {scenario!r} is not a built-in example", err=True)
+        raise typer.Exit(2)
+    if not dimensions_for(scenario):
+        typer.echo(f"no judge dimensions registered for scenario {scenario!r}", err=True)
+        raise typer.Exit(2)
+
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+    except ModuleNotFoundError:
+        pass  # .env support is optional; env vars may already be set
+    from replaygate.judge.claude import ClaudeJudge
+
+    judge = ClaudeJudge(model=model) if model else ClaudeJudge()
+    spec = EXAMPLES[scenario]
+    verdict = record_judge(fixture, judge, spec.build_agent, spec.tools())
+    write_fixture(fixture_dir, fixture)
+    typer.echo(
+        f"recorded judge verdict for {scenario} "
+        f"({len(verdict.verdicts)} dimension(s)) → {fixture_dir}"
+    )
 
 
 @app.command()

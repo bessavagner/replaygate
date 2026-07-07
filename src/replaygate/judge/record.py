@@ -9,12 +9,17 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from replaygate.capture.errors import DivergenceError
 from replaygate.judge import Judge
 from replaygate.judge.models import JudgeVerdict
 from replaygate.trace.models import Conversation
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from replaygate.store.fixtures import Fixture
 
 
 def judge_key(conversation: Conversation, dimensions: list[str]) -> str:
@@ -58,3 +63,30 @@ class RecordingJudge:
         verdict = self._inner.judge(conversation, dimensions)
         self._recording.append({"judge_key": key, "verdict": verdict.model_dump(mode="json")})
         return verdict
+
+
+def record_judge(
+    fixture: Fixture,
+    judge: Judge,
+    build_agent: Callable[..., object],
+    tools: dict[str, Callable[..., dict]],
+) -> JudgeVerdict | None:
+    """Record a semantic-judge verdict into ``fixture.judge_recording`` (in place).
+
+    Runs ``judge`` over the fixture's *replayed* conversation — the same conversation
+    ``regress --judge`` keys its lookup over — so the recorded key matches at replay
+    time. Idempotent: re-recording overwrites any prior verdict for the same key.
+    Returns the verdict, or ``None`` if the scenario has no registered dimensions.
+    """
+    from replaygate.capture.replay import replay_conversation
+    from replaygate.judge.registry import dimensions_for
+
+    replayed = replay_conversation(fixture, build_agent, tools)
+    dimensions = dimensions_for(replayed.scenario)
+    if not dimensions:
+        return None
+    key = judge_key(replayed, dimensions)
+    fixture.judge_recording[:] = [e for e in fixture.judge_recording if e["judge_key"] != key]
+    return RecordingJudge(judge, mode="record", recording=fixture.judge_recording).judge(
+        replayed, dimensions
+    )

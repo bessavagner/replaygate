@@ -95,11 +95,20 @@ For dimensions a deterministic predicate can't express — goal completion, rele
 recorded judge verdict can be replayed alongside the invariants. Like the LLM/tool calls, judge
 calls are captured and replayed offline, keyed by the conversation and requested dimensions.
 
+Record a verdict into an existing fixture once (a live Anthropic call), then replay it offline
+forever:
+
 ```bash
+replaygate judge-record ./fx          # live: score the fixture, persist judge_recording.json
 replaygate regress ./fx --judge       # per-dimension verdicts, advisory, fully offline
 replaygate regress ./fx --judge-gate  # opt-in: judge failures fail the run (exit 4)
 replaygate regress ./fx               # unchanged: deterministic gate only
 ```
+
+`judge-record` is the only step that touches the network; it reads `ANTHROPIC_API_KEY` from the
+environment (or a local `.env`) and defaults to `claude-opus-4-8` (override with `--model`).
+Re-running it overwrites the fixture's prior verdict. Without a recorded verdict, `regress
+--judge` is a no-op advisory ("no recorded verdict") and `--judge-gate` cannot fail the run.
 
 `--judge` is **advisory** — it prints per-dimension scores but never changes the exit code.
 Gating is opt-in via `--judge-gate`, which fails the run (exit 4) if any judged dimension scores
