@@ -7,7 +7,7 @@ RELEVANCE = "relevance"
 TONE = "tone"
 DIMENSIONS: tuple[str, ...] = (GOAL_COMPLETION, RELEVANCE, TONE)
 
-# A dimension holds below this score is treated as a judge-gate failure.
+# A dimension scoring below this score is treated as a judge-gate failure.
 PASS_THRESHOLD: float = 0.5
 
 
