@@ -17,6 +17,9 @@ from replaygate.capture.errors import DivergenceError
 from replaygate.capture.llm import LLMClient
 from replaygate.capture.replay import replay_conversation
 from replaygate.invariants import InvariantResult, check_conversation, invariants_for
+from replaygate.judge import Judge
+from replaygate.judge.models import JudgeVerdict
+from replaygate.judge.registry import dimensions_for
 from replaygate.store.fixtures import Fixture
 from replaygate.trace.models import Conversation
 
@@ -32,6 +35,7 @@ class RegressReport(BaseModel):
     policy: Literal["pinned", "live"] = "pinned"
     results: list[InvariantResult] = Field(default_factory=list)
     divergences: list[Divergence] = Field(default_factory=list)
+    judge_verdict: JudgeVerdict | None = None
 
     @property
     def passed(self) -> bool:
@@ -55,6 +59,7 @@ def run_regress(
     *,
     policy: Literal["pinned", "live"] = "pinned",
     inner_llm: LLMClient | None = None,
+    judge: Judge | None = None,
 ) -> RegressReport:
     if policy == "live" and inner_llm is None:
         raise ValueError("policy='live' requires an inner_llm to resolve divergences")
@@ -71,4 +76,12 @@ def run_regress(
         )
         return RegressReport(scenario=scenario, policy=policy, results=[], divergences=[div])
     results = check_conversation(replayed, invariants_for(scenario))
-    return RegressReport(scenario=scenario, policy=policy, results=results)
+    report = RegressReport(scenario=scenario, policy=policy, results=results)
+    if judge is not None:
+        dims = dimensions_for(scenario)
+        if dims:
+            try:
+                report.judge_verdict = judge.judge(replayed, dims)
+            except DivergenceError:
+                report.judge_verdict = None  # advisory: a missing recording never fails the run
+    return report
