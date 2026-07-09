@@ -108,16 +108,18 @@ replaygate regress ./fx               # unchanged: deterministic gate only
 `judge-record` is the only step that touches the network; it reads `ANTHROPIC_API_KEY` from the
 environment (or a local `.env`) and defaults to `claude-opus-4-8` (override with `--model`).
 Re-running it overwrites the fixture's prior verdict. Without a recorded verdict, `regress
---judge` is a no-op advisory ("no recorded verdict") and `--judge-gate` cannot fail the run.
+--judge` is a no-op advisory ("no recorded verdict"), while `--judge-gate` refuses to run at all
+(exit 2) — a gate that cannot be evaluated must not report a pass.
 
 A verdict is keyed to the exact conversation it scored, so it only replays for the fixture's own
 agent. Running `regress --judge --candidate X` (or `--policy live`) judges a *different*
-trajectory, finds no matching verdict, and stays advisory — record a verdict for that candidate
-if you want one.
+trajectory and finds no matching verdict: under `--judge` that stays advisory, and under
+`--judge-gate` it is an exit 2. Record a verdict for that candidate if you want to gate on it.
 
 `--judge` is **advisory** — it prints per-dimension scores but never changes the exit code.
 Gating is opt-in via `--judge-gate`, which fails the run (exit 4) if any judged dimension scores
-below `PASS_THRESHOLD`. The deterministic invariant gate stays authoritative either way.
+below `PASS_THRESHOLD`, and exits 2 if it has no verdict to score. The deterministic invariant
+gate stays authoritative either way: a violated invariant is exit 1 before the judge is consulted.
 
 ## The trace contract
 

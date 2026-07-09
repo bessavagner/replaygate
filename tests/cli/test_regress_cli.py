@@ -104,3 +104,20 @@ def test_judge_flag_without_recording_is_advisory(tmp_path):
     result = runner.invoke(app, ["regress", str(tmp_path), "--judge"])
     assert result.exit_code == 0  # advisory: missing verdict never changes the exit code
     assert "no recorded" in (result.stdout + result.stderr)
+
+
+def test_judge_gate_without_recording_refuses_to_pass(tmp_path):
+    # A gate that cannot run must not report a pass: exit 2, not a green 0.
+    _write("booking_happy", str(tmp_path))  # no judge_recording written
+    result = runner.invoke(app, ["regress", str(tmp_path), "--judge-gate"])
+    assert result.exit_code == 2
+    assert "JUDGE-GATE ERROR" in (result.stdout + result.stderr)
+    assert "regress OK" not in result.stdout
+
+
+def test_failing_invariant_outranks_a_judge_gate_that_cannot_run(tmp_path):
+    # The deterministic gate stays authoritative: exit 1 wins over the gate's exit 2.
+    _write("booking_books_without_confirm_regression", str(tmp_path))
+    result = runner.invoke(app, ["regress", str(tmp_path), "--judge-gate"])
+    assert result.exit_code == 1
+    assert "regress FAILED" in result.stdout

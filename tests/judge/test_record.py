@@ -72,7 +72,8 @@ def test_judge_key_is_stable_across_replay():
     ``fixture.conversation``, but ``regress --judge`` looks it up over
     ``replay_conversation(fixture)``. If replay ever produces a conversation that
     hashes differently (e.g. per-message timestamps), a recorded verdict would
-    never be found on replay and judge-gate would silently go advisory-only.
+    never be found on replay: --judge would go advisory-only and --judge-gate
+    would refuse to run.
     """
     spec = EXAMPLES["booking_happy"]
     fixture = record_conversation(

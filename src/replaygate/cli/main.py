@@ -239,10 +239,17 @@ def regress(
     for r in report.results:
         typer.echo(f"  [{'PASS' if r.passed else 'FAIL'}] {r.name}: {r.detail}")
 
+    unavailable: str | None = None
     if judge or judge_gate:
         verdict = report.judge_verdict
         if verdict is None:
-            typer.echo("  judge: no recorded verdict for this fixture (advisory)", err=True)
+            unavailable = (
+                f"no judge dimensions registered for scenario {scenario!r}"
+                if not dimensions_for(scenario)
+                else "no recorded verdict for this fixture; run `replaygate judge-record` first"
+            )
+            if not judge_gate:
+                typer.echo(f"  judge: {unavailable} (advisory)", err=True)
         else:
             for v in verdict.verdicts:
                 typer.echo(f"  [judge] {v.dimension}: {v.score:.2f} — {v.rationale}")
@@ -252,11 +259,13 @@ def regress(
         typer.echo(f"regress FAILED ({scenario}): {len(failed)} invariant(s) violated")
         raise typer.Exit(1)
 
-    gate_failures = (
-        report.judge_verdict.failures(PASS_THRESHOLD)
-        if (judge_gate and report.judge_verdict is not None)
-        else []
-    )
+    # --judge tolerates a missing verdict; --judge-gate must not. A gate that cannot
+    # run has not passed, so refuse the run rather than fail open into a green build.
+    if judge_gate and unavailable is not None:
+        typer.echo(f"regress JUDGE-GATE ERROR ({scenario}): {unavailable}", err=True)
+        raise typer.Exit(2)
+
+    gate_failures = report.judge_verdict.failures(PASS_THRESHOLD) if judge_gate else []
     if gate_failures:
         for v in gate_failures:
             typer.echo(f"  JUDGE-GATE: {v.dimension} scored {v.score:.2f} (< {PASS_THRESHOLD})")
