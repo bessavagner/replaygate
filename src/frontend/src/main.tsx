@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
+import RunDetail from "./routes/RunDetail";
 import RunList from "./routes/RunList";
 import "./index.css";
 
@@ -29,6 +30,14 @@ createRoot(document.getElementById("root")!).render(
           element={
             <Shell>
               <RunList />
+            </Shell>
+          }
+        />
+        <Route
+          path="/runs/:runId"
+          element={
+            <Shell>
+              <RunDetail />
             </Shell>
           }
         />
