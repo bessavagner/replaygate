@@ -15,6 +15,19 @@ import makeWASocket, { DisconnectReason, useMultiFileAuthState } from 'baileys'
 const PORT = Number(process.env.PORT ?? 8787)
 const log = pino({ transport: { target: 'pino-pretty' } , level: process.env.LOG_LEVEL ?? 'info' })
 
+// Only these senders are recorded. `fixtures/` is committed to git, so without a
+// whitelist any stranger who messages this number lands in a permanent artifact.
+// Digits only, so "+55 85 91234-5678", "5585912345678" and a full JID all match.
+// Group JIDs (@g.us) never match a phone number, which drops group chats for free.
+const ALLOWED = (process.env.REPLAYGATE_ALLOWED_NUMBERS ?? '')
+  .split(',').map((n) => n.replace(/\D/g, '')).filter(Boolean)
+
+function isAllowed(jid) {
+  if (!ALLOWED.length) return true      // unset = record anyone; warned about at boot
+  const digits = String(jid ?? '').split('@')[0].split(':')[0].replace(/\D/g, '')
+  return ALLOWED.includes(digits)
+}
+
 const inbound = []          // { id, text, sent_at } — index is the cursor
 const waiters = []          // resolve callbacks parked by an empty long-poll
 let peerJid = null          // NEVER leaves this process
@@ -59,6 +72,11 @@ async function connect() {
       if (m.key.fromMe) continue
       const text = m.message?.conversation ?? m.message?.extendedTextMessage?.text
       if (!text) continue          // media, reactions, receipts: out of scope
+      if (!isAllowed(m.key.remoteJid)) {
+        // Do not log the JID: it is exactly the thing that must not escape.
+        log.warn('dropped a message from a sender outside REPLAYGATE_ALLOWED_NUMBERS')
+        continue
+      }
       peerJid = m.key.remoteJid
       push({ id: m.key.id, text, sent_at: Number(m.messageTimestamp) })
       log.info({ id: m.key.id }, 'inbound')
@@ -92,6 +110,15 @@ app.post('/outbound', async (req, res) => {
   log.info({ id: sent.key.id }, 'outbound')
   res.json({ id: sent.key.id })
 })
+
+if (!ALLOWED.length) {
+  log.warn(
+    'REPLAYGATE_ALLOWED_NUMBERS is unset — every sender will be recorded into the fixture. ' +
+    'Set it to your own number before pairing.'
+  )
+} else {
+  log.info(`recording ${ALLOWED.length} whitelisted sender(s)`)
+}
 
 await connect()
 app.listen(PORT, '127.0.0.1', () => log.info(`sidecar listening on http://127.0.0.1:${PORT}`))

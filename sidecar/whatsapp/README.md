@@ -3,14 +3,15 @@
 A throwaway transport between a WhatsApp number and ReplayGate. **Showcase only**:
 a test number, no real users, no advertising, no customer service. Baileys is an
 unofficial client — a number can be banned for using it. Never point this at a
-number you care about.
+number you care about: enforcement is at the *account* level, so the ban takes the
+number itself, not just the linked device, and it is usually permanent.
 
 ## Run it
 
 ```bash
 cd sidecar/whatsapp
 npm install
-npm start
+REPLAYGATE_ALLOWED_NUMBERS='+55 85 91234-5678' npm start
 ```
 
 It prints a QR code. On the throwaway phone: **WhatsApp → Settings → Linked devices →
@@ -22,6 +23,20 @@ Then, from the repo root:
 ```bash
 replaygate record-whatsapp whatsapp_support ./fixtures/whatsapp_support --max-turns 4
 ```
+
+## Whose messages get recorded
+
+`REPLAYGATE_ALLOWED_NUMBERS` is a comma-separated whitelist of senders. Everything else
+is dropped in `messages.upsert` and never reaches Python. Matching is on digits only, so
+`+55 85 91234-5678`, `5585912345678`, and a full JID all match the same person. Group JIDs
+(`@g.us`) never match a phone number, which drops group chats for free.
+
+**Set it.** `fixtures/` is committed to git: without a whitelist, any stranger who messages
+this number lands in a permanent, public artifact. Unset means *record anyone*, and the
+sidecar warns loudly at boot when that is the case.
+
+It is not a ban mitigation — see the warning at the top. The number paired to this sidecar
+is the one at risk, and no whitelist changes that.
 
 ## Why `baileys` is pinned to 6.7.24
 
