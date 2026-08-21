@@ -116,6 +116,71 @@ def record_live(
     typer.echo(f"recorded {scenario_name} live via {provider} → {out_dir}")
 
 
+@app.command(name="record-whatsapp")
+def record_whatsapp(
+    scenario_name: str,
+    out_dir: str,
+    sidecar: str = typer.Option(
+        "http://127.0.0.1:8787", help="Baileys sidecar base URL (see sidecar/whatsapp/README.md)"
+    ),
+    provider: str = typer.Option("anthropic", help="LLM provider for the live agent"),
+    model: str = typer.Option(None, help="model override; defaults to the scenario's"),
+    max_turns: int = typer.Option(8, help="stop the recording after this many bursts"),
+) -> None:
+    """Record a LIVE WhatsApp conversation through the Node sidecar (S3-T3).
+
+    The only command in ReplayGate that touches a real messaging channel. Needs the
+    sidecar running and paired — see `sidecar/whatsapp/README.md`. Showcase only:
+    throwaway number, no real users. Everything it writes replays offline afterwards.
+    """
+    from replaygate.channels.baileys import BaileysTransport, SidecarUnavailable
+
+    spec = _spec_for(scenario_name)
+    transport = BaileysTransport(sidecar)
+    try:
+        health = transport.health()
+    except SidecarUnavailable as e:
+        typer.echo(f"{e}\nstart it with: cd sidecar/whatsapp && npm start", err=True)
+        raise typer.Exit(2) from None
+    if not health.get("connected"):
+        typer.echo(
+            f"sidecar at {sidecar} is running but not paired to WhatsApp; "
+            "scan the QR it printed and retry",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+    except ModuleNotFoundError:
+        pass  # .env support is optional; env vars may already be set
+    from replaygate.capture.providers import make_client
+
+    try:
+        inner_llm = make_client(provider, model=model)
+    except ValueError as e:
+        raise typer.BadParameter(str(e)) from None
+
+    typer.echo(f"listening on the sidecar — send it a message (up to {max_turns} turns)…")
+    fixture = record_conversation(
+        agent_factory=spec.build_agent,
+        inner_llm=inner_llm,
+        scenario=spec.scenario,
+        adapter=WhatsAppAdapter(transport, max_turns=max_turns),
+        tools=spec.tools(),
+        agent_version=f"live-whatsapp-{provider}",
+        model=model or spec.model,
+        recorded_at=datetime.now(timezone.utc),
+    )
+    write_fixture(out_dir, fixture)
+    typer.echo(
+        f"recorded {len(fixture.conversation.turns)} whatsapp turn(s) → {out_dir}\n"
+        f"verify it replays offline: replaygate replay {out_dir}"
+    )
+
+
 @app.command(name="judge-record")
 def judge_record(
     fixture_dir: str,
