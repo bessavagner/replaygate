@@ -11,6 +11,10 @@ from __future__ import annotations
 import re
 import string
 
+from replaygate.channels.invariants import (
+    messages_in_send_order,
+    no_reply_after_session_window,
+)
 from replaygate.invariants import InvariantResult, register
 from replaygate.trace.models import Conversation
 
@@ -91,3 +95,11 @@ register("support_happy", order_id_never_reasked)
 register("support_reask_regression", order_id_never_reasked)
 register("profile_happy", dietary_constraint_honored)
 register("profile_forgets_regression", dietary_constraint_honored)
+
+for _whatsapp_scenario in ("whatsapp_support", "whatsapp_support_late_reply_regression"):
+    # The channel invariants are generic; order_id_never_reasked is the same
+    # agent-level property as the direct-mode support scenarios — registering it
+    # here is the point: an invariant should not care which wire the turns arrived on.
+    register(_whatsapp_scenario, order_id_never_reasked)
+    register(_whatsapp_scenario, messages_in_send_order)
+    register(_whatsapp_scenario, no_reply_after_session_window)

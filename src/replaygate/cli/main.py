@@ -8,6 +8,8 @@ import typer
 from replaygate.capture.adapters import DirectAdapter
 from replaygate.capture.record import record_conversation
 from replaygate.capture.replay import diff_conversations, replay_conversation
+from replaygate.channels.scripted import ScriptedTransport
+from replaygate.channels.whatsapp import WhatsAppAdapter
 from replaygate.examples.scenarios import CANDIDATES, EXAMPLES, scripted_llm_for
 from replaygate.judge.models import PASS_THRESHOLD
 from replaygate.judge.record import RecordingJudge, record_judge
@@ -35,19 +37,39 @@ def _spec_for(scenario_name: str):
         ) from None
 
 
+def _adapter_for(channel: str, scenario_name: str, spec, recorded_at: datetime):
+    """Build the channel adapter for an offline recording.
+
+    `whatsapp` runs against `ScriptedTransport`, not a sidecar: `record` is the
+    offline command and must stay that way. The live path is `record-whatsapp`.
+    """
+    if channel == "direct":
+        return DirectAdapter()
+    if channel != "whatsapp":
+        raise typer.BadParameter("channel must be 'direct' or 'whatsapp'")
+    if spec.channel_script is None:
+        scripted = ", ".join(n for n, s in EXAMPLES.items() if s.channel_script)
+        raise typer.BadParameter(
+            f"scenario {scenario_name!r} has no whatsapp script; choose from: {scripted}"
+        )
+    return WhatsAppAdapter(ScriptedTransport(spec.channel_script, start=recorded_at))
+
+
 @app.command()
 def record(scenario_name: str, out_dir: str, channel: str = "direct") -> None:
     """Record a built-in scenario into a fixture directory (offline)."""
     spec = _spec_for(scenario_name)
+    recorded_at = datetime.now(timezone.utc)
+    adapter = _adapter_for(channel, scenario_name, spec, recorded_at)
     fixture = record_conversation(
         agent_factory=spec.build_agent,
         inner_llm=scripted_llm_for(scenario_name),
         scenario=spec.scenario,
-        adapter=DirectAdapter(),
+        adapter=adapter,
         tools=spec.tools(),
         agent_version="dev",
         model=spec.model,
-        recorded_at=datetime.now(timezone.utc),
+        recorded_at=recorded_at,
     )
     write_fixture(out_dir, fixture)
     typer.echo(f"recorded {scenario_name} → {out_dir}")

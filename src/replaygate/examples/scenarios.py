@@ -6,6 +6,7 @@ from typing import Callable
 from replaygate.capture.adapters import Scenario
 from replaygate.capture.llm import LLMClient, LLMResponse
 from replaygate.capture.tools import ToolRecorder
+from replaygate.channels.scripted import ScriptedBurst, ScriptedInbound
 from replaygate.examples import invariants as _invariants  # noqa: F401  # registers scenario invariants
 from replaygate.examples import judge_dimensions as _judge_dimensions  # noqa: F401  # registers scenario dimensions
 from replaygate.examples.booking_agent import BookingAgent, booking_tools
@@ -23,6 +24,8 @@ class ExampleSpec:
     tools: Callable[[], dict[str, Callable[..., dict]]]
     script: list[LLMResponse]
     model: str = "claude-haiku-4-5"
+    channel_script: list[ScriptedBurst] | None = None
+    """Scripted inbound bursts for `--channel whatsapp`; None means direct-only."""
 
 
 EXAMPLES: dict[str, ExampleSpec] = {
@@ -103,6 +106,63 @@ EXAMPLES: dict[str, ExampleSpec] = {
         script=[
             LLMResponse(text="Noted — no dairy."),
             LLMResponse(text="I recommend the margherita pizza."),
+        ],
+    ),
+    # WhatsApp — the same SupportAgent, recorded off a channel instead of a script.
+    # Turn 0 arrives out of order, as it would after a reconnect; the adapter
+    # restores send order before the agent ever sees it.
+    "whatsapp_support": ExampleSpec(
+        scenario=Scenario(name="whatsapp_support", user_turns=[]),
+        build_agent=lambda llm, tools: SupportAgent(llm=llm, tools=tools),
+        tools=support_tools,
+        script=[
+            LLMResponse(text="Let me check ORD-1234 for you."),
+            LLMResponse(text="ORD-1234 has shipped — ETA 2026-07-02."),
+        ],
+        channel_script=[
+            ScriptedBurst(
+                messages=[
+                    ScriptedInbound(id="WA-1", text="hey there"),
+                    ScriptedInbound(id="WA-2", text="my order ORD-1234 — has it shipped?",
+                                    after_s=1),
+                ],
+                gap_s=0,
+                reply_after_s=4,
+                deliver_out_of_order=True,
+            ),
+            ScriptedBurst(
+                messages=[ScriptedInbound(id="WA-3", text="any update on the delivery?")],
+                gap_s=120,
+                reply_after_s=6,
+            ),
+        ],
+    ),
+    # Same agent, same words, same tool calls — but the second reply takes 30
+    # hours, so it lands outside WhatsApp's 24h customer-service window and never
+    # reaches the customer. A channel regression with no textual diff at all.
+    "whatsapp_support_late_reply_regression": ExampleSpec(
+        scenario=Scenario(name="whatsapp_support_late_reply_regression", user_turns=[]),
+        build_agent=lambda llm, tools: SupportAgent(llm=llm, tools=tools),
+        tools=support_tools,
+        script=[
+            LLMResponse(text="Let me check ORD-1234 for you."),
+            LLMResponse(text="ORD-1234 has shipped — ETA 2026-07-02."),
+        ],
+        channel_script=[
+            ScriptedBurst(
+                messages=[
+                    ScriptedInbound(id="WA-1", text="hey there"),
+                    ScriptedInbound(id="WA-2", text="my order ORD-1234 — has it shipped?",
+                                    after_s=1),
+                ],
+                gap_s=0,
+                reply_after_s=4,
+            ),
+            ScriptedBurst(
+                messages=[ScriptedInbound(id="WA-3", text="any update on the delivery?")],
+                gap_s=120,
+                reply_after_s=30 * 3600,
+            ),
         ],
     ),
 }
