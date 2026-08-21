@@ -26,9 +26,9 @@ production. ReplayGate exists to catch exactly this class — invariants like
 
 > **Status: v0.** The trace contract, span store, app-seam record/replay wrappers, a channel
 > adapter, offline replay-and-diff, the **cross-turn invariant suite**, OpenTelemetry span emission
-> through the capture loop, the `record` / `replay` / `regress` CLI, and an advisory **semantic
-> judge** (`--judge` / `--judge-gate`) are shipped and tested (fully offline). A read-only
-> dashboard and channel adapters beyond `direct` are next — see [Roadmap](#roadmap).
+> through the capture loop, the `record` / `replay` / `regress` CLI, an advisory **semantic
+> judge** (`--judge` / `--judge-gate`), and a **read-only dashboard** are shipped and tested
+> (fully offline). Channel adapters beyond `direct` are next — see [Roadmap](#roadmap).
 
 ## Channel-native by design
 
@@ -121,6 +121,89 @@ Gating is opt-in via `--judge-gate`, which fails the run (exit 4) if any judged 
 below `PASS_THRESHOLD`, and exits 2 if it has no verdict to score. The deterministic invariant
 gate stays authoritative either way: a violated invariant is exit 1 before the judge is consulted.
 
+## Read-only dashboard
+
+A baseline-vs-current conversation diff for a recorded fixture: turns side by side, the
+divergent turn highlighted, cross-turn invariant chips and advisory judge chips above it.
+Read-only and fixture-driven — no write path, no database, no auth.
+
+```bash
+uv pip install -e '.[dashboard]'
+cd src/frontend && npm ci && npm run build && cd ../..
+replaygate dashboard serve --fixtures ./fixtures --frontend ./src/frontend/dist
+```
+
+The screen worth looking at replays a recorded conversation against a *different* agent:
+
+```bash
+# baseline: support_happy   candidate: an agent that forgets the order id
+open 'http://localhost:8000/runs/support_happy_judged?candidate=support_regressed'
+```
+
+`fixtures/support_happy_judged/` is the one fixture this repo ships — a `support_happy`
+recording that also carries a real recorded judge verdict. Open it without a candidate
+(`/runs/support_happy_judged`) to see the judge chips populated; with the candidate above
+the verdict no longer applies, because a judge verdict is keyed to the conversation it
+judged, so the screen honestly says no verdict was recorded for that run.
+
+Turn 0 is identical. Turn 1 diverges — the candidate answers `"Sure — what's your order
+number?"` and makes no tool call, and `order_id_never_reasked` fails with *"turn 1: re-asked
+for an order id already given on turn 0"*. That is the whole thesis in one screen: turn 1 is
+individually plausible and only wrong in the context of turn 0.
+
+The frontend is Vite + React + Tailwind 4 + daisyUI 5 under `src/frontend/`; the API is
+FastAPI under `src/replaygate/api/`.
+
+### Operating it
+
+`--fixtures` points at the *parent* of the fixture directories, not at one fixture. Omit
+`--frontend` to serve the JSON API alone. Exit 2 `the dashboard extra is not installed`
+means you skipped `uv pip install -e '.[dashboard]'`.
+
+Frontend development loop — Vite serves on 5173 and proxies `/api` to 8000, so there is no
+CORS configuration:
+
+```bash
+replaygate dashboard serve --fixtures ./fixtures --port 8000 &
+cd src/frontend && npm run dev
+```
+
+Container — the image generates its demo fixtures at build time and listens on `$PORT`
+(default 8080):
+
+```bash
+docker build -f deploy/Dockerfile -t replaygate-dashboard .
+docker run --rm -p 8080:8080 replaygate-dashboard
+```
+
+The ignore file is `deploy/Dockerfile.dockerignore`, **not** `deploy/.dockerignore`: Docker
+reads `.dockerignore` from the build-context root, and for a Dockerfile outside that root
+BuildKit reads `<dockerfile-path>.dockerignore`. With the wrong name the rules are silently
+skipped and the context grows from ~2 kB to ~200 MB.
+
+Cloud Run — `--allow-unauthenticated` is deliberate; the surface is read-only with no write
+path and no secrets in the image:
+
+```bash
+docker build -f deploy/Dockerfile -t gcr.io/YOUR_PROJECT_ID/replaygate-dashboard .
+docker push gcr.io/YOUR_PROJECT_ID/replaygate-dashboard
+gcloud run deploy replaygate-dashboard \
+  --image gcr.io/YOUR_PROJECT_ID/replaygate-dashboard \
+  --region us-central1 --allow-unauthenticated --port 8080
+```
+
+### The `regress` exit-code contract
+
+| Exit | Meaning |
+|---|---|
+| 0 | every invariant held |
+| 1 | an invariant was violated |
+| 2 | the run could not be evaluated (no invariants, unreadable fixture, `--judge-gate` with no verdict) |
+| 3 | the candidate left the recorded trajectory (divergence, `--policy pinned`) |
+| 4 | `--judge-gate` only: a judged dimension scored below `PASS_THRESHOLD` (0.5) |
+
+`--judge` is advisory and never changes the exit code. Only `--judge-gate` can produce 4.
+
 ## The trace contract
 
 Everything hangs off a small tree of Pydantic models — `Message`, `ToolCall`, `Turn`,
@@ -134,7 +217,7 @@ demand — a reference target for the replay-and-diff work.
 
 ```bash
 uv pip install -e '.[dev]'
-python -m pytest -q     # 78 passed, fully offline
+python -m pytest -q     # 143 passed, fully offline
 ruff check .
 ```
 
@@ -146,8 +229,8 @@ network calls.
 - **Semantic judge** — shipped. An LLM judge for the dimensions deterministic predicates can't
   cover (goal completion, relevance, tone), behind `--judge` / `--judge-gate` and kept advisory,
   out of the deterministic PR gate by default.
-- **Read-only dashboard** — a baseline-vs-current conversation diff view with divergence highlights
-  and invariant chips, deployed as a live demo.
+- **Read-only dashboard** — shipped. A baseline-vs-current conversation diff with divergence
+  highlights and invariant/judge chips, served by a read-only FastAPI + React app.
 - **Channel adapters** beyond `direct` — WhatsApp first, for agents deployed on real messaging
   channels.
 
