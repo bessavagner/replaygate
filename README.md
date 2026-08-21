@@ -27,8 +27,8 @@ production. ReplayGate exists to catch exactly this class — invariants like
 > **Status: v0.** The trace contract, span store, app-seam record/replay wrappers, a channel
 > adapter, offline replay-and-diff, the **cross-turn invariant suite**, OpenTelemetry span emission
 > through the capture loop, the `record` / `replay` / `regress` CLI, an advisory **semantic
-> judge** (`--judge` / `--judge-gate`), and a **read-only dashboard** are shipped and tested
-> (fully offline). Channel adapters beyond `direct` are next — see [Roadmap](#roadmap).
+> judge** (`--judge` / `--judge-gate`), a **read-only dashboard**, and the **WhatsApp channel
+> adapter** are shipped and tested (fully offline). See [Roadmap](#roadmap).
 
 ## Channel-native by design
 
@@ -36,8 +36,33 @@ Agents don't run as abstract Python calls — they run on WhatsApp, Slack, voice
 correct in a unit test can break on the channel because of message ordering, session windows, or
 delivery quirks. ReplayGate models the channel as a first-class part of the trace
 (`channel: Literal["direct", "whatsapp"]`, a `ChannelAdapter` protocol) so the same recorded
-conversation can be replayed as it actually ran. The `direct` adapter ships today; channel adapters
-(WhatsApp first) are on the roadmap.
+conversation can be replayed as it actually ran.
+
+**WhatsApp ships today.** A `channel="whatsapp"` conversation flows through the same
+`record_conversation` path as `direct` — the adapter differs, nothing downstream does. What the
+adapter owns is the two realities a direct-mode test never meets: a **burst** of messages sent
+seconds apart is *one* turn rather than several, and **send order is not arrival order**, because
+WhatsApp redelivers after a reconnect. Both get their own cross-turn invariant, and both can only
+be violated by a channel recording:
+
+```bash
+replaygate record whatsapp_support ./fx-wa --channel whatsapp
+replaygate regress ./fx-wa
+#   [PASS] order_id_never_reasked: order id carried forward, never re-asked
+#   [PASS] messages_in_send_order: every burst is in send order
+#   [PASS] no_reply_after_session_window: every reply landed inside the 24h session window
+```
+
+The second invariant is the interesting one. `whatsapp_support_late_reply_regression` is the same
+agent, saying the same words, making the same tool calls — and it **fails**, because the reply took
+30 hours and landed outside WhatsApp's 24h customer-service window, so the customer never received
+it. A regression with no textual diff at all; no per-turn assertion can see it.
+
+Replay stays **pure Python**: `replay.py` imports nothing from `replaygate.channels`, so a WhatsApp
+fixture replays with no Node, no sidecar, no network, and no API key. Recording off a *live* number
+needs a Baileys sidecar (`sidecar/whatsapp/`), which is showcase-only and deliberately never sends
+the sender's identity to Python — see
+[`docs/runbook.md`](docs/runbook.md) § *Record a LIVE WhatsApp conversation*.
 
 ## Why record at the application seam
 
@@ -64,6 +89,10 @@ Record one of the built-in reference scenarios into a fixture directory:
 replaygate record booking_happy ./fx
 # recorded booking_happy → ./fx
 ```
+
+Add `--channel whatsapp` to record a scenario off a (fake, virtual-clock) WhatsApp channel
+instead — still fully offline. Recording off a real number needs the Node sidecar; that
+procedure lives in [`docs/runbook.md`](docs/runbook.md).
 
 Each recorded conversation is a fixture **directory**, not a blob:
 
@@ -231,8 +260,10 @@ network calls.
   out of the deterministic PR gate by default.
 - **Read-only dashboard** — shipped. A baseline-vs-current conversation diff with divergence
   highlights and invariant/judge chips, served by a read-only FastAPI + React app.
-- **Channel adapters** beyond `direct` — WhatsApp first, for agents deployed on real messaging
-  channels.
+- **Channel adapters** beyond `direct` — WhatsApp shipped. `WhatsAppAdapter` + a `ChannelTransport`
+  seam, burst-aware turns, send-order repair, and two channel-only invariants (send order, the 24h
+  session window). A Baileys Node sidecar records off a live number; everything replays offline in
+  pure Python. Slack and voice are the next candidates.
 
 ## Build log
 

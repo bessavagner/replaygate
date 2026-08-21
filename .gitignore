@@ -9,6 +9,9 @@ node_modules/
 dist/
 .env
 
+# machine-local code index — never commit the db, logs, or cache
+.codegraph/
+
 # local agent/session state and working docs (not part of the project)
 .omc/
 docs/
