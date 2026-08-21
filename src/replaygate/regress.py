@@ -36,6 +36,7 @@ class RegressReport(BaseModel):
     results: list[InvariantResult] = Field(default_factory=list)
     divergences: list[Divergence] = Field(default_factory=list)
     judge_verdict: JudgeVerdict | None = None
+    replayed: Conversation | None = None
 
     @property
     def passed(self) -> bool:
@@ -76,7 +77,9 @@ def run_regress(
         )
         return RegressReport(scenario=scenario, policy=policy, results=[], divergences=[div])
     results = check_conversation(replayed, invariants_for(scenario))
-    report = RegressReport(scenario=scenario, policy=policy, results=results)
+    report = RegressReport(
+        scenario=scenario, policy=policy, results=results, replayed=replayed
+    )
     if judge is not None:
         dims = dimensions_for(scenario)
         if dims:

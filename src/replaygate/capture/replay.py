@@ -70,6 +70,21 @@ def _tool_sig(tc) -> tuple:
     return (tc.name, tc.arguments, tc.result)
 
 
+def turn_diff_flags(recorded: Turn, replayed: Turn) -> tuple[bool, bool]:
+    """``(assistant text changed, tool-call sequence changed)`` for one aligned turn.
+
+    The single definition of "this turn diverged": ``diff_conversations`` renders it
+    as strings for the CLI, the dashboard renders it as a highlight. Keeping both on
+    this one function means the CLI and the UI can never disagree about which turn
+    changed.
+    """
+    rec_text = " ".join(m.content for m in recorded.assistant_messages)
+    rep_text = " ".join(m.content for m in replayed.assistant_messages)
+    rec_calls = [_tool_sig(tc) for tc in recorded.tool_calls]
+    rep_calls = [_tool_sig(tc) for tc in replayed.tool_calls]
+    return rec_text != rep_text, rec_calls != rep_calls
+
+
 def diff_conversations(recorded: Conversation, replayed: Conversation) -> list[str]:
     """Return human-readable differences; empty list means a faithful replay."""
     diffs: list[str] = []
@@ -78,12 +93,13 @@ def diff_conversations(recorded: Conversation, replayed: Conversation) -> list[s
         return diffs
 
     for rec, rep in zip(recorded.turns, replayed.turns):
-        rec_text = " ".join(m.content for m in rec.assistant_messages)
-        rep_text = " ".join(m.content for m in rep.assistant_messages)
-        if rec_text != rep_text:
+        text_changed, tools_changed = turn_diff_flags(rec, rep)
+        if text_changed:
+            rec_text = " ".join(m.content for m in rec.assistant_messages)
+            rep_text = " ".join(m.content for m in rep.assistant_messages)
             diffs.append(f"turn {rec.index} assistant text: {rec_text!r} != {rep_text!r}")
-        rec_calls = [_tool_sig(tc) for tc in rec.tool_calls]
-        rep_calls = [_tool_sig(tc) for tc in rep.tool_calls]
-        if rec_calls != rep_calls:
+        if tools_changed:
+            rec_calls = [_tool_sig(tc) for tc in rec.tool_calls]
+            rep_calls = [_tool_sig(tc) for tc in rep.tool_calls]
             diffs.append(f"turn {rec.index} tool calls: {rec_calls} != {rep_calls}")
     return diffs
