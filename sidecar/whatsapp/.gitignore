@@ -1,0 +1,3 @@
+node_modules/
+# Baileys writes the paired session here — device credentials, never commit.
+auth/
