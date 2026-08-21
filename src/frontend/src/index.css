@@ -1,0 +1,43 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: false;
+}
+@plugin "daisyui/theme" {
+  name: "replaygate";
+  default: true;
+  prefersdark: false;
+  color-scheme: light;
+  --color-base-100: oklch(99% 0.002 250);
+  --color-base-200: oklch(96% 0.004 250);
+  --color-base-300: oklch(91% 0.007 250);
+  --color-base-content: oklch(24% 0.017 255);
+  --color-primary: oklch(48% 0.146 258);
+  --color-primary-content: oklch(98% 0.003 250);
+  --color-secondary: oklch(56% 0.055 255);
+  --color-secondary-content: oklch(98% 0.003 250);
+  --color-accent: oklch(58% 0.098 210);
+  --color-accent-content: oklch(98% 0.003 250);
+  --color-neutral: oklch(30% 0.018 255);
+  --color-neutral-content: oklch(97% 0.003 250);
+  --color-info: oklch(58% 0.108 240);
+  --color-info-content: oklch(98% 0.003 250);
+  --color-success: oklch(56% 0.118 155);
+  --color-success-content: oklch(98% 0.003 250);
+  --color-warning: oklch(70% 0.148 75);
+  --color-warning-content: oklch(24% 0.032 75);
+  --color-error: oklch(56% 0.198 20);
+  --color-error-content: oklch(98% 0.003 250);
+  --radius-selector: 0.25rem;
+  --radius-field: 0.25rem;
+  --radius-box: 0.25rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+@theme {
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+}
