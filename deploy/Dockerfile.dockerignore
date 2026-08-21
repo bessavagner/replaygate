@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/__pycache__
+**/*.pyc
+.venv
+.git
+.pytest_cache
+.ruff_cache
+docs
+.omc
+.codegraph
+.env

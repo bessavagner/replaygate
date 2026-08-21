@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 
 import typer
 
@@ -15,6 +16,9 @@ from replaygate.regress import run_regress
 from replaygate.store.fixtures import read_fixture, write_fixture
 
 app = typer.Typer(help="ReplayGate — regression testing for multi-turn AI agents")
+
+dashboard_app = typer.Typer(help="Read-only dashboard over recorded fixtures.")
+app.add_typer(dashboard_app, name="dashboard")
 
 
 @app.callback()
@@ -276,3 +280,37 @@ def regress(
         raise typer.Exit(4)
 
     typer.echo(f"regress OK ({scenario}): {len(report.results)} invariant(s) held")
+
+
+@dashboard_app.command("serve")
+def dashboard_serve(
+    fixtures: str = typer.Option(
+        ..., "--fixtures", envvar="REPLAYGATE_FIXTURES",
+        help="directory whose subdirectories are fixture directories",
+    ),
+    frontend: str = typer.Option(
+        None, "--frontend", envvar="REPLAYGATE_FRONTEND",
+        help="built SPA directory; omit to serve the JSON API alone",
+    ),
+    host: str = typer.Option("127.0.0.1", help="bind address; use 0.0.0.0 in a container"),
+    port: int = typer.Option(8000, help="bind port"),
+) -> None:
+    """Serve the read-only dashboard. Needs the 'dashboard' extra installed."""
+    try:
+        import uvicorn
+
+        from replaygate.api.app import create_app
+    except ModuleNotFoundError as e:  # keep `replaygate --help` working without the extra
+        typer.echo(
+            f"the dashboard extra is not installed ({e.name} missing); "
+            "install it with: uv pip install -e '.[dashboard]'",
+            err=True,
+        )
+        raise typer.Exit(2) from None
+
+    fixtures_root = Path(fixtures)
+    if not fixtures_root.is_dir():
+        typer.echo(f"no such fixtures directory: {fixtures}", err=True)
+        raise typer.Exit(2)
+    frontend_dir = Path(frontend) if frontend else None
+    uvicorn.run(create_app(fixtures_root, frontend_dir), host=host, port=port)
