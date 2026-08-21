@@ -16,10 +16,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = ["pytest>=8", "ruff>=0.6", "httpx>=0.27"]
 # Live recording against real providers. anthropic ships in core deps; openai
 # covers OpenAI, OpenRouter, and Ollama (all OpenAI-compatible).
 providers = ["openai>=1.0", "python-dotenv>=1.0"]
+# Read-only dashboard API. fastapi>=0.141 is a hard floor: app.frontend() does
+# not exist before it.
+dashboard = ["fastapi>=0.141", "uvicorn[standard]>=0.34"]
 
 [project.scripts]
 replaygate = "replaygate.cli.main:app"
