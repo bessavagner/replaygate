@@ -1,0 +1,103 @@
+{
+  "id": "whatsapp_support-2026-08-21T14:31:11.949370+00:00",
+  "scenario": "whatsapp_support",
+  "channel": "whatsapp",
+  "session_meta": {
+    "session_id": "whatsapp_support",
+    "started_at": "2026-08-21T14:31:11.949370Z",
+    "window_expired_at": "2026-08-22T14:33:18.949370Z"
+  },
+  "turns": [
+    {
+      "index": 0,
+      "user_messages": [
+        {
+          "role": "user",
+          "content": "hey there",
+          "ts": "2026-08-21T14:31:11.949370Z",
+          "channel_meta": {
+            "message_id": "WA-1",
+            "order_index": 0
+          }
+        },
+        {
+          "role": "user",
+          "content": "my order ORD-1234 — has it shipped?",
+          "ts": "2026-08-21T14:31:12.949370Z",
+          "channel_meta": {
+            "message_id": "WA-2",
+            "order_index": 1
+          }
+        }
+      ],
+      "assistant_messages": [
+        {
+          "role": "assistant",
+          "content": "Let me check ORD-1234 for you.",
+          "ts": "2026-08-21T14:31:18.949370Z",
+          "channel_meta": {
+            "message_id": "OUT-1",
+            "order_index": 0
+          }
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lookup_order",
+          "arguments": {
+            "order_id": "ORD-1234"
+          },
+          "result": {
+            "order_id": "ORD-1234",
+            "status": "shipped",
+            "eta": "2026-07-02"
+          },
+          "error": null,
+          "call_id": "call-1"
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "user_messages": [
+        {
+          "role": "user",
+          "content": "any update on the delivery?",
+          "ts": "2026-08-21T14:33:18.949370Z",
+          "channel_meta": {
+            "message_id": "WA-3",
+            "order_index": 0
+          }
+        }
+      ],
+      "assistant_messages": [
+        {
+          "role": "assistant",
+          "content": "ORD-1234 has shipped — ETA 2026-07-02.",
+          "ts": "2026-08-21T14:33:26.949370Z",
+          "channel_meta": {
+            "message_id": "OUT-2",
+            "order_index": 1
+          }
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lookup_order",
+          "arguments": {
+            "order_id": "ORD-1234"
+          },
+          "result": {
+            "order_id": "ORD-1234",
+            "status": "shipped",
+            "eta": "2026-07-02"
+          },
+          "error": null,
+          "call_id": "call-2"
+        }
+      ]
+    }
+  ],
+  "agent_version": "dev",
+  "model": "claude-haiku-4-5"
+}

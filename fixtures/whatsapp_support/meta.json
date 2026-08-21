@@ -1,0 +1,6 @@
+{
+  "scenario": "whatsapp_support",
+  "agent_version": "dev",
+  "model": "claude-haiku-4-5",
+  "recorded_at": "2026-08-21T14:31:11.949370Z"
+}

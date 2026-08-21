@@ -1,0 +1,24 @@
+[
+  {
+    "tool": "lookup_order",
+    "args": {
+      "order_id": "ORD-1234"
+    },
+    "result": {
+      "order_id": "ORD-1234",
+      "status": "shipped",
+      "eta": "2026-07-02"
+    }
+  },
+  {
+    "tool": "lookup_order",
+    "args": {
+      "order_id": "ORD-1234"
+    },
+    "result": {
+      "order_id": "ORD-1234",
+      "status": "shipped",
+      "eta": "2026-07-02"
+    }
+  }
+]

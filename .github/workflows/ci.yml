@@ -30,3 +30,13 @@ jobs:
             echo "expected the regressed fixture to FAIL the gate with exit 1 (invariant violation), got exit $rc"
             exit 1
           fi
+          replaygate record whatsapp_support ./_fx_wa --channel whatsapp
+          replaygate replay ./_fx_wa
+          replaygate regress ./_fx_wa
+          replaygate regress ./fixtures/whatsapp_support
+          replaygate record whatsapp_support_late_reply_regression ./_fx_wa_late --channel whatsapp
+          replaygate regress ./_fx_wa_late && wa_rc=0 || wa_rc=$?
+          if [ "$wa_rc" -ne 1 ]; then
+            echo "expected the late-reply fixture to FAIL the gate with exit 1 (session-window invariant), got exit $wa_rc"
+            exit 1
+          fi

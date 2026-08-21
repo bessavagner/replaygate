@@ -1,0 +1,72 @@
+[
+  {
+    "request_key": "128718117d57705a9b9c347519cf79213c0f88fd2157cd6b1ee37e997f92d0cb",
+    "request": {
+      "model": "claude-haiku-4-5",
+      "system": "You are a support agent. Reuse the order id the customer already gave you.",
+      "messages": [
+        {
+          "role": "user",
+          "content": "hey there"
+        },
+        {
+          "role": "user",
+          "content": "my order ORD-1234 \u2014 has it shipped?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me check ORD-1234 for you."
+        },
+        {
+          "role": "user",
+          "content": "any update on the delivery?"
+        },
+        {
+          "role": "assistant",
+          "content": "ORD-1234 has shipped \u2014 ETA 2026-07-02."
+        }
+      ],
+      "tools": []
+    },
+    "response": {
+      "text": "Let me check ORD-1234 for you.",
+      "tool_calls": [],
+      "raw": {}
+    }
+  },
+  {
+    "request_key": "2a743da3ad790a0f59628fc642383ad13de3ef5460e7f61008cf0d57f77afed8",
+    "request": {
+      "model": "claude-haiku-4-5",
+      "system": "You are a support agent. Reuse the order id the customer already gave you.",
+      "messages": [
+        {
+          "role": "user",
+          "content": "hey there"
+        },
+        {
+          "role": "user",
+          "content": "my order ORD-1234 \u2014 has it shipped?"
+        },
+        {
+          "role": "assistant",
+          "content": "Let me check ORD-1234 for you."
+        },
+        {
+          "role": "user",
+          "content": "any update on the delivery?"
+        },
+        {
+          "role": "assistant",
+          "content": "ORD-1234 has shipped \u2014 ETA 2026-07-02."
+        }
+      ],
+      "tools": []
+    },
+    "response": {
+      "text": "ORD-1234 has shipped \u2014 ETA 2026-07-02.",
+      "tool_calls": [],
+      "raw": {}
+    }
+  }
+]
