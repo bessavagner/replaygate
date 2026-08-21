@@ -1,0 +1,25 @@
+[
+  {
+    "judge_key": "c2c0cc57e1126c12eb6a58fe08f3b4e470db00691f1cccfc61220c3c4d681316",
+    "verdict": {
+      "scenario": "support_happy",
+      "verdicts": [
+        {
+          "dimension": "goal_completion",
+          "score": 1.0,
+          "rationale": "The assistant fully answered the user's question by confirming the order shipped and providing a delivery ETA."
+        },
+        {
+          "dimension": "relevance",
+          "score": 1.0,
+          "rationale": "Both responses directly addressed the shipping and delivery status of the specific order ORD-1234."
+        },
+        {
+          "dimension": "tone",
+          "score": 1.0,
+          "rationale": "The assistant maintained a helpful, clear, and professional tone throughout the exchange."
+        }
+      ]
+    }
+  }
+]

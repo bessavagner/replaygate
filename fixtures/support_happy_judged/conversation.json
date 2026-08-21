@@ -1,0 +1,88 @@
+{
+  "id": "support_happy-2026-08-21T13:18:27.934212+00:00",
+  "scenario": "support_happy",
+  "channel": "direct",
+  "session_meta": {
+    "session_id": "support_happy",
+    "started_at": "2026-08-21T13:18:27.934212Z",
+    "window_expired_at": null
+  },
+  "turns": [
+    {
+      "index": 0,
+      "user_messages": [
+        {
+          "role": "user",
+          "content": "my order ORD-1234 — has it shipped?",
+          "ts": "2026-08-21T13:18:27.934230Z",
+          "channel_meta": {
+            "message_id": null,
+            "order_index": 0
+          }
+        }
+      ],
+      "assistant_messages": [
+        {
+          "role": "assistant",
+          "content": "Let me check ORD-1234 for you.",
+          "ts": "2026-08-21T13:18:27.934212Z",
+          "channel_meta": null
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lookup_order",
+          "arguments": {
+            "order_id": "ORD-1234"
+          },
+          "result": {
+            "order_id": "ORD-1234",
+            "status": "shipped",
+            "eta": "2026-07-02"
+          },
+          "error": null,
+          "call_id": "call-1"
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "user_messages": [
+        {
+          "role": "user",
+          "content": "any update on the delivery?",
+          "ts": "2026-08-21T13:18:27.934312Z",
+          "channel_meta": {
+            "message_id": null,
+            "order_index": 0
+          }
+        }
+      ],
+      "assistant_messages": [
+        {
+          "role": "assistant",
+          "content": "ORD-1234 has shipped — ETA 2026-07-02.",
+          "ts": "2026-08-21T13:18:27.934212Z",
+          "channel_meta": null
+        }
+      ],
+      "tool_calls": [
+        {
+          "name": "lookup_order",
+          "arguments": {
+            "order_id": "ORD-1234"
+          },
+          "result": {
+            "order_id": "ORD-1234",
+            "status": "shipped",
+            "eta": "2026-07-02"
+          },
+          "error": null,
+          "call_id": "call-2"
+        }
+      ]
+    }
+  ],
+  "agent_version": "dev",
+  "model": "claude-haiku-4-5"
+}

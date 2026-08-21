@@ -31,5 +31,9 @@ RUN replaygate record support_happy /app/fixtures/support_happy \
  && replaygate record booking_happy /app/fixtures/booking_happy \
  && replaygate record booking_books_without_confirm_regression /app/fixtures/booking_regression
 
+# The one fixture that carries a real recorded judge verdict, so the demo shows
+# judge chips. Recorded once against Anthropic; replayed offline forever after.
+COPY fixtures/support_happy_judged /app/fixtures/support_happy_judged
+
 EXPOSE 8080
 CMD ["sh", "-c", "replaygate dashboard serve --host 0.0.0.0 --port ${PORT}"]
