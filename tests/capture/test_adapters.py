@@ -11,3 +11,10 @@ def test_direct_adapter_yields_user_messages_per_turn():
     assert turns[0][0].channel_meta.order_index == 0
     assert turns[0][1].channel_meta.order_index == 1
     assert all(m.role == "user" for t in turns for m in t)
+
+
+def test_direct_adapter_has_no_channel_side_effects():
+    adapter = DirectAdapter()
+    assert adapter.deliver("anything") is None
+    assert adapter.session_window_expiry() is None
+    assert adapter.now().tzinfo is not None
