@@ -56,7 +56,15 @@ def record_conversation(
                 history.append({"role": "user", "content": m.content})
             step = agent.respond(history)
             history.append({"role": "assistant", "content": step.assistant_text})
-            assistant_msgs = [Message(role="assistant", content=step.assistant_text, ts=recorded_at)]
+            # Push the reply onto the channel *before* stamping it: on a live
+            # channel the send is what fixes the message's time and its id.
+            sent_meta = adapter.deliver(step.assistant_text)
+            assistant_msgs = [Message(
+                role="assistant",
+                content=step.assistant_text,
+                ts=adapter.now(),
+                channel_meta=sent_meta,
+            )]
             turns.append(Turn(
                 index=idx,
                 user_messages=user_msgs,
@@ -68,7 +76,11 @@ def record_conversation(
         id=conversation_id,
         scenario=scenario.name,
         channel=adapter.channel,
-        session_meta=SessionMeta(session_id=scenario.name, started_at=recorded_at),
+        session_meta=SessionMeta(
+            session_id=scenario.name,
+            started_at=recorded_at,
+            window_expired_at=adapter.session_window_expiry(),
+        ),
         turns=turns,
         agent_version=agent_version,
         model=model,

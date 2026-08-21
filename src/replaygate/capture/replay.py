@@ -55,10 +55,20 @@ def replay_conversation(
             e.turn_index = turn.index
             raise
         history.append({"role": "assistant", "content": step.assistant_text})
+        # Replay re-runs the agent's *decisions*, not its clock: when the reply
+        # went out is a property of the recording, not of this process. Carry it
+        # forward, or every channel-timing invariant evaluates against replay's
+        # own instantaneous clock and passes vacuously.
+        recorded = turn.assistant_messages[0] if turn.assistant_messages else None
         turns.append(Turn(
             index=turn.index,
             user_messages=turn.user_messages,
-            assistant_messages=[Message(role="assistant", content=step.assistant_text, ts=ts)],
+            assistant_messages=[Message(
+                role="assistant",
+                content=step.assistant_text,
+                ts=recorded.ts if recorded is not None else ts,
+                channel_meta=recorded.channel_meta if recorded is not None else None,
+            )],
             tool_calls=step.tool_calls,
         ))
 
