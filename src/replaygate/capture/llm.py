@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 from typing import Literal, Protocol
@@ -51,6 +52,8 @@ class RecordingLLMClient:
             return self._inner.create(model, system, messages, tools)
 
     def create(self, model: str, system: str, messages: list[dict], tools: list[dict]) -> LLMResponse:
+        # The caller keeps appending to `messages` after this returns, so a stored
+        # body must be a copy taken now, or it drifts to the conversation's end state.
         key = request_key(model, system, messages, tools)
         if self._mode == "replay":
             for entry in self._recording:
@@ -62,7 +65,7 @@ class RecordingLLMClient:
                 response = self._create(model, system, messages, tools)
                 self._recording.append({
                     "request_key": key,
-                    "request": {"model": model, "system": system, "messages": messages, "tools": tools},
+                    "request": {"model": model, "system": system, "messages": copy.deepcopy(messages), "tools": tools},
                     "response": response.model_dump(),
                 })
                 return response
@@ -74,7 +77,7 @@ class RecordingLLMClient:
         response = self._create(model, system, messages, tools)
         self._recording.append({
             "request_key": key,
-            "request": {"model": model, "system": system, "messages": messages, "tools": tools},
+            "request": {"model": model, "system": system, "messages": copy.deepcopy(messages), "tools": tools},
             "response": response.model_dump(),
         })
         return response

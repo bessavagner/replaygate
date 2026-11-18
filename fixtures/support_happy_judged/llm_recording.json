@@ -8,18 +8,6 @@
         {
           "role": "user",
           "content": "my order ORD-1234 \u2014 has it shipped?"
-        },
-        {
-          "role": "assistant",
-          "content": "Let me check ORD-1234 for you."
-        },
-        {
-          "role": "user",
-          "content": "any update on the delivery?"
-        },
-        {
-          "role": "assistant",
-          "content": "ORD-1234 has shipped \u2014 ETA 2026-07-02."
         }
       ],
       "tools": []
@@ -47,10 +35,6 @@
         {
           "role": "user",
           "content": "any update on the delivery?"
-        },
-        {
-          "role": "assistant",
-          "content": "ORD-1234 has shipped \u2014 ETA 2026-07-02."
         }
       ],
       "tools": []

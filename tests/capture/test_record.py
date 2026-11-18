@@ -86,3 +86,32 @@ def test_record_emits_conversation_and_call_spans():
     assert llm.attributes["gen_ai.request.model"] == "claude-haiku-4-5"
     tool_names = {s.attributes["tool.name"] for s in fixture.spans if s.operation == "tool.call"}
     assert tool_names == {"search_slots", "book_appointment"}
+
+
+def test_each_recorded_request_body_hashes_to_its_own_key():
+    # The agent keeps appending to one history list. If the recorder stores a
+    # reference to it instead of a copy, every stored body ends up holding the
+    # conversation's final state and no body matches the key it was filed under.
+    from replaygate.capture.llm import request_key
+
+    scenario = Scenario(name="booking", user_turns=[["what slots on 2026-07-01?"], ["yes, 3pm"]])
+    inner = ScriptedLLM([
+        LLMResponse(text="There are 10am and 3pm.", tool_calls=[
+            {"name": "search_slots", "arguments": {"date": "2026-07-01"}}]),
+        LLMResponse(text="Booked 3pm.", tool_calls=[
+            {"name": "book_appointment", "arguments": {"slot": "3pm"}}]),
+    ])
+    fixture = record_conversation(
+        agent_factory=lambda llm, tools: BookingAgent(llm=llm, tools=tools),
+        inner_llm=inner,
+        scenario=scenario,
+        adapter=DirectAdapter(),
+        tools=booking_tools(),
+        agent_version="abc123",
+        model="claude-haiku-4-5",
+        recorded_at=TS,
+    )
+    for entry in fixture.llm_recording:
+        req = entry["request"]
+        assert request_key(req["model"], req["system"], req["messages"], req["tools"]) == entry["request_key"]
+    assert [m["role"] for m in fixture.llm_recording[0]["request"]["messages"]] == ["user"]
